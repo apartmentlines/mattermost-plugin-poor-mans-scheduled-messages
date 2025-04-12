@@ -1,10 +1,10 @@
 {
-    "id": "com.mattermost.plugin-starter-template",
-    "name": "Plugin Starter Template",
-    "description": "This plugin serves as a starting point for writing a Mattermost plugin.",
-    "homepage_url": "https://github.com/mattermost/mattermost-plugin-starter-template",
-    "support_url": "https://github.com/mattermost/mattermost-plugin-starter-template/issues",
-    "icon_path": "assets/starter-template-icon.svg",
+    "id": "com.mattermost.plugin-poor-mans-scheduled-messages",
+    "name": "Plugin Poor Man's Scheduled Messages",
+    "description": "Plugin to send scheduled messages.",
+    "homepage_url": "https://github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages",
+    "support_url": "https://github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/issues",
+    "icon_path": "assets/poor-mans-scheduled-messages-icon.svg",
     "min_server_version": "6.2.1",
     "server": {
         "executables": {
@@ -14,9 +14,6 @@
             "darwin-arm64": "server/dist/plugin-darwin-arm64",
             "windows-amd64": "server/dist/plugin-windows-amd64.exe"
         }
-    },
-    "webapp": {
-        "bundle_path": "webapp/dist/main.js"
     },
     "settings_schema": {
         "header": "",
