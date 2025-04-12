@@ -2,7 +2,7 @@ package kvstore
 
 import (
 	"github.com/mattermost/mattermost/server/public/pluginapi"
-	"github.com/pkg/errors"
+	// "github.com/pkg/errors"
 )
 
 // We expose our calls to the KVStore pluginapi methods through this interface for testability and stability.
@@ -18,12 +18,11 @@ func NewKVStore(client *pluginapi.Client) KVStore {
 	}
 }
 
-// Sample method to get a key-value pair in the KV store
-func (kv Client) GetTemplateData(userID string) (string, error) {
-	var templateData string
-	err := kv.client.KV.Get("template_key-"+userID, &templateData)
+func (kv Client) LoadLastIDFromKV() (int64, error) {
+	var lastID int64
+	err := kv.client.KV.Get("schedule_last_id", &lastID)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get template data")
+		return 0, err
 	}
-	return templateData, nil
+	return lastID, nil
 }
