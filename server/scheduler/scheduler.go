@@ -2,19 +2,17 @@ package scheduler
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
-	"github.com/mattermost/mattermost/server/public/pluginapi"
-	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/pluginapi"
 )
 
 type Scheduler struct {
-	api   *pluginapi.Client
-	store store.Store
+	api    *pluginapi.Client
+	store  store.Store
 	ctx    context.Context
 	cancel context.CancelFunc
 	mu     sync.Mutex
@@ -53,17 +51,17 @@ func (s *Scheduler) checkAndPostDueMessages() {
 	defer s.mu.Unlock()
 
 	now := time.Now().UTC().Unix()
-	ids, err := s.store.ListAllScheduledIDs(s.ctx)
-	if err != nil {
-		s.api.Log.Error("failed to list scheduled IDs", "err", err.Error())
+	ids, listErr := s.store.ListAllScheduledIDs()
+	if listErr != nil {
+		s.api.Log.Error("failed to list scheduled IDs", "err", listErr.Error())
 		return
 	}
 
 	for id, ts := range ids {
 		if ts <= now {
-			msg, err := s.store.GetScheduledMessage(s.ctx, id)
-			if err != nil {
-				s.api.Log.Warn("unable to load scheduled message", "id", id, "err", err.Error())
+			msg, getErr := s.store.GetScheduledMessage(id)
+			if getErr != nil {
+				s.api.Log.Warn("unable to load scheduled message", "id", id, "err", getErr.Error())
 				continue
 			}
 
@@ -73,16 +71,20 @@ func (s *Scheduler) checkAndPostDueMessages() {
 				UserId:    msg.UserID,
 			}
 
-			_, err = s.api.Post.CreatePost(post)
-			if err != nil {
-				s.api.Log.Error("failed to post scheduled message", "id", id, "err", err.Error())
+			deleteErr := s.store.DeleteScheduledMessage(msg.UserID, msg.ID)
+			if deleteErr != nil {
+				s.api.Log.Error("failed to delete scheduled message from store", "id", id, "err", deleteErr.Error())
+				// TODO: send error to user
+				continue
+			}
+
+			postErr := s.api.Post.CreatePost(post)
+			if postErr != nil {
+				s.api.Log.Error("failed to post scheduled message", "id", id, "err", postErr.Error())
+				// TODO: send error to user
 			} else {
 				s.api.Log.Info("posted scheduled message", "id", id)
 			}
-
-			_ = s.store.DeleteScheduledMessage(s.ctx, id)
-			_ = s.store.RemoveUserMessageID(s.ctx, msg.UserID, msg.ID)
 		}
 	}
 }
-

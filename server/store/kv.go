@@ -1,63 +1,84 @@
-// --- File: pkg/store/kv.go ---
 package store
 
 import (
-	"context"
 	"fmt"
+	"slices"
 
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/google/uuid"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
-	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 )
 
 type Store interface {
-	SaveScheduledMessage(ctx context.Context, msg *types.ScheduledMessage) error
-	DeleteScheduledMessage(ctx context.Context, msgID string) error
-	GetScheduledMessage(ctx context.Context, msgID string) (*types.ScheduledMessage, error)
-	ListAllScheduledIDs(ctx context.Context) (map[string]int64, error)
-	ListUserMessageIDs(ctx context.Context, userID string) ([]string, error)
-	AddUserMessageID(ctx context.Context, userID, msgID string) error
-	RemoveUserMessageID(ctx context.Context, userID, msgID string) error
+	SaveScheduledMessage(userID string, msg *types.ScheduledMessage) error
+	DeleteScheduledMessage(userID string, msgID string) error
+	CleanupMessageFromUserIndex(userID string, msgID string) error
+	GetScheduledMessage(msgID string) (*types.ScheduledMessage, error)
+	ListAllScheduledIDs() (map[string]int64, error)
+	ListUserMessageIDs(userID string) ([]string, error)
 	GenerateMessageID() string
 }
 
 type kvStore struct {
-	kv *pluginapi.KVService
+	client *pluginapi.Client
 }
 
-func NewKVStore(kv *pluginapi.KVService) Store {
-	return &kvStore{kv: kv}
+func NewKVStore(client *pluginapi.Client) Store {
+	return &kvStore{client: client}
 }
 
-func (s *kvStore) SaveScheduledMessage(ctx context.Context, msg *types.ScheduledMessage) error {
-	key := fmt.Sprintf("schedmsg:%s", msg.ID)
-	return s.kv.Set(ctx, key, msg)
+func (s *kvStore) SaveScheduledMessage(userID string, msg *types.ScheduledMessage) error {
+	_, addIndexErr := s.addUserMessageToIndex(userID, msg.ID)
+	if addIndexErr != nil {
+		return addIndexErr
+	}
+	_, saveMessageErr := s.saveNewScheduledMessage(msg)
+	if saveMessageErr != nil {
+		return saveMessageErr
+	}
+	return nil
 }
 
-func (s *kvStore) DeleteScheduledMessage(ctx context.Context, msgID string) error {
-	key := fmt.Sprintf("schedmsg:%s", msgID)
-	return s.kv.Delete(ctx, key)
+func (s *kvStore) DeleteScheduledMessage(userID string, msgID string) error {
+	scheduleErr := s.deleteScheduledMessageByID(msgID)
+	if scheduleErr != nil {
+		return scheduleErr
+	}
+	_, removeIndexErr := s.removeUserMessageFromIndex(userID, msgID)
+	if removeIndexErr != nil {
+		return removeIndexErr
+	}
+	return nil
 }
 
-func (s *kvStore) GetScheduledMessage(ctx context.Context, msgID string) (*types.ScheduledMessage, error) {
+func (s *kvStore) CleanupMessageFromUserIndex(userID string, msgID string) error {
+	_, removeIndexErr := s.removeUserMessageFromIndex(userID, msgID)
+	if removeIndexErr != nil {
+		return removeIndexErr
+	}
+	return nil
+}
+
+func (s *kvStore) GetScheduledMessage(msgID string) (*types.ScheduledMessage, error) {
 	var msg types.ScheduledMessage
 	key := fmt.Sprintf("schedmsg:%s", msgID)
-	err := s.kv.Get(ctx, key, &msg)
+	err := s.client.KV.Get(key, &msg)
 	if err != nil {
 		return nil, err
 	}
 	return &msg, nil
 }
 
-func (s *kvStore) ListAllScheduledIDs(ctx context.Context) (map[string]int64, error) {
+func (s *kvStore) ListAllScheduledIDs() (map[string]int64, error) {
 	results := make(map[string]int64)
-	keys, err := s.kv.ListKeys(ctx, pluginapi.WithPrefix("schedmsg:"))
+	// TODO: Make the count a constant, don't let a user schedule more than 1000 messages.
+	keys, err := s.client.KV.ListKeys(0, 1000, pluginapi.WithPrefix("schedmsg:"))
 	if err != nil {
 		return nil, err
 	}
 	for _, key := range keys {
 		var msg types.ScheduledMessage
-		err := s.kv.Get(ctx, key, &msg)
+		err := s.client.KV.Get(key, &msg)
 		if err == nil {
 			results[msg.ID] = msg.PostAt.Unix()
 		}
@@ -65,42 +86,54 @@ func (s *kvStore) ListAllScheduledIDs(ctx context.Context) (map[string]int64, er
 	return results, nil
 }
 
-func (s *kvStore) ListUserMessageIDs(ctx context.Context, userID string) ([]string, error) {
+func (s *kvStore) ListUserMessageIDs(userID string) ([]string, error) {
 	var ids []string
 	key := fmt.Sprintf("user_sched_index:%s", userID)
-	err := s.kv.Get(ctx, key, &ids)
+	err := s.client.KV.Get(key, &ids)
 	if err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
-func (s *kvStore) AddUserMessageID(ctx context.Context, userID, msgID string) error {
-	key := fmt.Sprintf("user_sched_index:%s", userID)
-	var ids []string
-	s.kv.Get(ctx, key, &ids)
-	for _, id := range ids {
-		if id == msgID {
-			return nil
-		}
-	}
-	ids = append(ids, msgID)
-	return s.kv.Set(ctx, key, ids)
-}
-
-func (s *kvStore) RemoveUserMessageID(ctx context.Context, userID, msgID string) error {
-	key := fmt.Sprintf("user_sched_index:%s", userID)
-	var ids []string
-	s.kv.Get(ctx, key, &ids)
-	out := ids[:0]
-	for _, id := range ids {
-		if id != msgID {
-			out = append(out, id)
-		}
-	}
-	return s.kv.Set(ctx, key, out)
-}
-
 func (s *kvStore) GenerateMessageID() string {
 	return uuid.NewString()
+}
+
+func (s *kvStore) removeUserMessageFromIndex(userID, msgID string) (bool, error) {
+	key := fmt.Sprintf("user_sched_index:%s", userID)
+	var ids []string
+	getErr := s.client.KV.Get(key, &ids)
+	if getErr != nil {
+		return false, getErr
+	}
+	i := slices.Index(ids, msgID)
+	if i != -1 {
+		ids = slices.Delete(ids, i, i+1)
+	}
+	return s.client.KV.Set(key, ids)
+}
+
+func (s *kvStore) addUserMessageToIndex(userID, msgID string) (bool, error) {
+	key := fmt.Sprintf("user_sched_index:%s", userID)
+	var ids []string
+	getErr := s.client.KV.Get(key, &ids)
+	if getErr != nil {
+		return false, getErr
+	}
+	if slices.Contains(ids, msgID) {
+		return true, nil
+	}
+	ids = append(ids, msgID)
+	return s.client.KV.Set(key, ids)
+}
+
+func (s *kvStore) saveNewScheduledMessage(msg *types.ScheduledMessage) (bool, error) {
+	key := fmt.Sprintf("schedmsg:%s", msg.ID)
+	return s.client.KV.Set(key, msg)
+}
+
+func (s *kvStore) deleteScheduledMessageByID(msgID string) error {
+	key := fmt.Sprintf("schedmsg:%s", msgID)
+	return s.client.KV.Delete(key)
 }

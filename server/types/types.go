@@ -10,4 +10,3 @@ type ScheduledMessage struct {
 	MessageContent string    `json:"message_content"`
 	Timezone       string    `json:"timezone"`
 }
-

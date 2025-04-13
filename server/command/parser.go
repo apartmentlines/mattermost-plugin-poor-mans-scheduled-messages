@@ -15,18 +15,18 @@ type ParsedSchedule struct {
 
 func parseScheduleInput(input string) (*ParsedSchedule, error) {
 	input = strings.TrimSpace(input)
-	if !strings.Contains(input, " at ") || !strings.Contains(input, " message ") {
-		return nil, errors.New("Invalid format. Use: at <time> [on <date>] message <text>")
+	if !strings.Contains(input, "at ") || !strings.Contains(input, " message ") {
+		return nil, errors.New("invalid format. Use: at <time> [on <date>] message <text>")
 	}
 
 	parts := strings.SplitN(input, " message ", 2)
 	if len(parts) != 2 {
-		return nil, errors.New("Missing message content")
+		return nil, errors.New("missing message content")
 	}
 	before, message := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
 
 	if !strings.HasPrefix(before, "at ") {
-		return nil, errors.New("Missing 'at <time>' clause")
+		return nil, errors.New("missing 'at <time>' clause")
 	}
 
 	timePart := strings.TrimPrefix(before, "at ")
@@ -39,7 +39,7 @@ func parseScheduleInput(input string) (*ParsedSchedule, error) {
 	}
 
 	if timePart == "" || message == "" {
-		return nil, errors.New("Time or message content missing")
+		return nil, errors.New("time or message content missing")
 	}
 
 	return &ParsedSchedule{
