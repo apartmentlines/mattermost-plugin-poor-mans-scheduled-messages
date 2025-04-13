@@ -70,7 +70,7 @@ func (p *Plugin) UserDeleteMessage(w http.ResponseWriter, r *http.Request) {
 		Id:        req.PostId,
 		UserId:    userID,
 		ChannelId: req.ChannelId,
-		Props: map[string]interface{}{
+		Props: map[string]any{
 			"attachments": updatedList.Props["attachments"],
 		},
 	}

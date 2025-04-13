@@ -86,7 +86,7 @@ func (h *Handler) BuildEphemeralList(args *model.CommandArgs) *model.CommandResp
 	return &model.CommandResponse{
 		ResponseType: model.CommandResponseTypeEphemeral,
 		Text:         "### Scheduled Messages",
-		Props: map[string]interface{}{
+		Props: map[string]any{
 			"attachments": attachments,
 		},
 	}
@@ -191,7 +191,7 @@ func createAttachment(text string, messageID string) *model.SlackAttachment {
 				Style: "danger",
 				Integration: &model.PostActionIntegration{
 					URL: "/plugins/com.mattermost.plugin-poor-mans-scheduled-messages/api/v1/delete",
-					Context: map[string]interface{}{
+					Context: map[string]any{
 						"action": "delete",
 						"id":     messageID,
 					},
