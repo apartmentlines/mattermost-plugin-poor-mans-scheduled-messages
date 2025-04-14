@@ -41,6 +41,8 @@ func (h *Handler) Execute(args *model.CommandArgs) (*model.CommandResponse, *mod
 	text := strings.TrimSpace(args.Command[len("/schedule"):])
 
 	switch {
+	case strings.HasPrefix(text, "help"):
+		return h.scheduleHelp(), nil
 	case strings.HasPrefix(text, "list"):
 		return h.BuildEphemeralList(args), nil
 	default:
@@ -148,8 +150,43 @@ func (h *Handler) scheduleDefinition() *model.Command {
 	}
 }
 
+func (h *Handler) scheduleHelp() *model.CommandResponse {
+	// Use standard string concatenation to avoid issues with backticks in raw string literals.
+	helpText := "\n### Schedule Messages Plugin Help\n\n" +
+		"Use the `/schedule` command to send messages at a future time. Your configured Mattermost timezone is used for scheduling.\n\n" +
+		"**Scheduling a Message:**\n\n" +
+		"```\n/schedule at <time> [on <date>] message <your message text>\n```\n\n" +
+		"*   `<time>`: Specify the time. Supported formats:\n" +
+		"    *   `15:04` (military time)\n" +
+		"    *   `3:04PM` (12 hour time)\n" +
+		"    *   `3pm` (12 hour time shorthand)\n" +
+		"*   `[on <date>]`: (Optional) Specify the date in `YYYY-MM-DD` format (e.g., `2025-12-31`).\n" +
+		"    *   If omitted, defaults to today if the time is later than now, otherwise tomorrow.\n" +
+		"*   `<message text>`: The content of the message.\n\n" +
+		"**Examples:**\n\n" +
+		"*   Schedule for 5 PM today/tomorrow:\n" +
+		"    ```\n/schedule at 5:00PM message Remember the team meeting!\n```\n" +
+		"*   Schedule for a specific date:\n" +
+		"    ```\n/schedule at 9:30 on 2025-12-25 message Merry Christmas!\n```\n\n" +
+		"**Listing Scheduled Messages:**\n\n" +
+		"*   View your pending messages:\n" +
+		"    ```\n/schedule list\n```\n" +
+		"    *   This shows a list with options to delete each message.\n\n" +
+		"**Getting Help:**\n\n" +
+		"*   Show this help message:\n" +
+		"    ```\n/schedule help\n```\n"
+
+	return &model.CommandResponse{
+		ResponseType: model.CommandResponseTypeEphemeral,
+		Text:         helpText,
+	}
+}
+
 func (h *Handler) handleSchedule(args *model.CommandArgs, text string) *model.CommandResponse {
 	h.client.Log.Debug("Trying to schedule message", "user_id", args.UserId, "text", text)
+	if text == "" {
+		return h.scheduleHelp()
+	}
 	parsed, parseInputErr := parseScheduleInput(text)
 	if parseInputErr != nil {
 		return &model.CommandResponse{
