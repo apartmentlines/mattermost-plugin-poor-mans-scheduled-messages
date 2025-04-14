@@ -152,7 +152,7 @@ func (h *Handler) scheduleDefinition() *model.Command {
 
 func (h *Handler) scheduleHelp() *model.CommandResponse {
 	// Use standard string concatenation to avoid issues with backticks in raw string literals.
-	helpText := "\n### Schedule Messages Plugin Help\n\n" +
+	helpText := "\n### Schedule Messages Help\n\n" +
 		"Use the `/schedule` command to send messages at a future time. Your configured Mattermost timezone is used for scheduling.\n\n" +
 		"**Scheduling a Message:**\n\n" +
 		"```\n/schedule at <time> [on <date>] message <message text>\n```\n\n" +
