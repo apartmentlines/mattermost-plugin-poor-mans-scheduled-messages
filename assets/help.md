@@ -13,9 +13,9 @@ Type the command in the chat where you want your message to appear later. It wil
 
 **Examples:**
 
-*   To schedule 'Remember the team meeting!' for 2PM today/tomorrow:
+*   To schedule 'Remember the team meeting!' for 2:15PM today/tomorrow:
     ```
-    /schedule at 2:00PM message Remember the team meeting!
+    /schedule at 2:15PM message Remember the team meeting!
     ```
 *   To schedule 'Merry Christmas!' on Christmas morning:
     ```
