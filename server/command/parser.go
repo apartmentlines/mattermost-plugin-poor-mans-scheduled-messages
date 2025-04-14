@@ -16,7 +16,7 @@ type ParsedSchedule struct {
 func parseScheduleInput(input string) (*ParsedSchedule, error) {
 	input = strings.TrimSpace(input)
 	if !strings.Contains(input, "at ") || !strings.Contains(input, " message ") {
-		return nil, errors.New("invalid format. Use: at <time> [on <date>] message <text>")
+		return nil, errors.New("invalid format. Use: at `<time> [on <date>] message <text>`")
 	}
 
 	parts := strings.SplitN(input, " message ", 2)
