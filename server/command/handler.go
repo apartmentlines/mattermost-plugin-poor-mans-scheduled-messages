@@ -108,21 +108,21 @@ func (h *Handler) GetUserTimezone(userID string) string {
 	return "UTC"
 }
 
-func (h *Handler) UserDeleteMessage(userID string, msgID string) error {
+func (h *Handler) UserDeleteMessage(userID string, msgID string) (*types.ScheduledMessage, error) {
 	msg, err := h.store.GetScheduledMessage(msgID)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("failed to get scheduled message %s: %w", msgID, err)
 	}
 	if msg.UserID != userID {
-		message := fmt.Sprintf("User %s does not own message", userID)
+		message := fmt.Sprintf("user %s attempted to delete message %s owned by %s", userID, msgID, msg.UserID)
 		h.client.Log.Warn(message)
-		return errors.New(message)
+		return nil, errors.New(message)
 	}
 	err = h.store.DeleteScheduledMessage(userID, msgID)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("failed to delete scheduled message %s: %w", msgID, err)
 	}
-	return nil
+	return msg, nil
 }
 
 func (h *Handler) scheduleDefinition() *model.Command {
