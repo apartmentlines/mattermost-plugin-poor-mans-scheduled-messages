@@ -155,7 +155,7 @@ func (h *Handler) scheduleHelp() *model.CommandResponse {
 	helpText := "\n### Schedule Messages Plugin Help\n\n" +
 		"Use the `/schedule` command to send messages at a future time. Your configured Mattermost timezone is used for scheduling.\n\n" +
 		"**Scheduling a Message:**\n\n" +
-		"```\n/schedule at <time> [on <date>] message <your message text>\n```\n\n" +
+		"```\n/schedule at <time> [on <date>] message <message text>\n```\n\n" +
 		"*   `<time>`: Specify the time. Supported formats:\n" +
 		"    *   `15:04` (military time)\n" +
 		"    *   `3:04PM` (12 hour time)\n" +
