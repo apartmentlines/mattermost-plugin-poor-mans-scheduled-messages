@@ -3,8 +3,60 @@ package command
 import (
 	"errors"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
+)
+
+type dateFormat int
+
+const (
+	dateFormatInvalid dateFormat = iota
+	dateFormatNone
+	dateFormatYYYYMMDD
+	dateFormatDayOfWeek
+	dateFormatShortDayMonth
+)
+
+var (
+	regexFullCommand    = regexp.MustCompile(`(?i)^at\s+([0-9]{1,2}(?::[0-9]{2})?\s*(?:am|pm)?)(?:\s+on\s+((?:\d{4}-\d{2}-\d{2})|(?:\d{1,2}[a-z]{3})|(?:mon|tue|wed|thu|fri|sat|sun)|(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)))?\s+message\s+(.+)$`)
+	regexpYYYYMMDD      = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
+	regexpShortDayMonth = regexp.MustCompile(`^(\d{1,2})([a-z]{3})$`)
+)
+
+// Maps for parsing day and month names/abbreviations.
+var (
+	dayOfWeekMap = map[string]time.Weekday{
+		"sunday":    time.Sunday,
+		"sun":       time.Sunday,
+		"monday":    time.Monday,
+		"mon":       time.Monday,
+		"tuesday":   time.Tuesday,
+		"tue":       time.Tuesday,
+		"wednesday": time.Wednesday,
+		"wed":       time.Wednesday,
+		"thursday":  time.Thursday,
+		"thu":       time.Thursday,
+		"friday":    time.Friday,
+		"fri":       time.Friday,
+		"saturday":  time.Saturday,
+		"sat":       time.Saturday,
+	}
+	monthAbbrMap = map[string]time.Month{
+		"jan": time.January,
+		"feb": time.February,
+		"mar": time.March,
+		"apr": time.April,
+		"may": time.May,
+		"jun": time.June,
+		"jul": time.July,
+		"aug": time.August,
+		"sep": time.September,
+		"oct": time.October,
+		"nov": time.November,
+		"dec": time.December,
+	}
 )
 
 type ParsedSchedule struct {
@@ -14,73 +66,145 @@ type ParsedSchedule struct {
 }
 
 func parseScheduleInput(input string) (*ParsedSchedule, error) {
-	input = strings.TrimSpace(input)
-	if !strings.Contains(input, "at ") || !strings.Contains(input, " message ") {
+	trimmedInput := strings.TrimSpace(input)
+	matches := regexFullCommand.FindStringSubmatch(trimmedInput)
+	if matches == nil {
 		return nil, errors.New("invalid format. Use: `at <time> [on <date>] message <your message text>`")
 	}
-
-	parts := strings.SplitN(input, " message ", 2)
-	if len(parts) != 2 {
-		return nil, errors.New("missing message content")
-	}
-	before, message := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
-
-	if !strings.HasPrefix(before, "at ") {
-		return nil, errors.New("missing 'at <time>' clause")
-	}
-
-	timePart := strings.TrimPrefix(before, "at ")
-	dateStr := ""
-
-	if strings.Contains(timePart, " on ") {
-		timeDateParts := strings.SplitN(timePart, " on ", 2)
-		timePart = strings.TrimSpace(timeDateParts[0])
-		dateStr = strings.TrimSpace(timeDateParts[1])
-	}
-
-	if timePart == "" || message == "" {
-		return nil, errors.New("time or message content missing")
-	}
-
+	time := strings.ToLower(strings.ReplaceAll(matches[1], " ", ""))
+	date := strings.ToLower(matches[2])
+	message := matches[3]
 	return &ParsedSchedule{
-		TimeStr: timePart,
-		DateStr: dateStr,
+		TimeStr: time,
+		DateStr: date,
 		Message: message,
 	}, nil
 }
 
-func resolveScheduledTime(timeStr, dateStr string, now time.Time, loc *time.Location) (time.Time, error) {
-	var layouts = []string{"15:04", "3:04PM", "3:04pm", "3pm"}
-	var parsedTime time.Time
-	var err error
-	for _, layout := range layouts {
-		parsedTime, err = time.ParseInLocation(layout, timeStr, loc)
-		if err == nil {
-			break
+func determineDateFormat(dateStr string) dateFormat {
+	if dateStr == "" {
+		return dateFormatNone
+	}
+	if regexpYYYYMMDD.MatchString(dateStr) {
+		return dateFormatYYYYMMDD
+	}
+	if _, dayOfWeekOk := dayOfWeekMap[dateStr]; dayOfWeekOk {
+		return dateFormatDayOfWeek
+	}
+	if matches := regexpShortDayMonth.FindStringSubmatch(dateStr); matches != nil {
+		if _, monthOk := monthAbbrMap[matches[2]]; monthOk {
+			dayInt, dayErr := strconv.Atoi(matches[1])
+			if dayErr == nil && dayInt >= 1 && dayInt <= 31 {
+				return dateFormatShortDayMonth
+			}
 		}
 	}
+	return dateFormatInvalid
+}
+
+func resolveDateTimeNone(_ string, parsedTime time.Time, now time.Time, loc *time.Location) (time.Time, error) {
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	candidateDateTimeToday := time.Date(today.Year(), today.Month(), today.Day(), parsedTime.Hour(), parsedTime.Minute(), 0, 0, loc)
+	if candidateDateTimeToday.After(now) {
+		return candidateDateTimeToday, nil
+	}
+	tomorrow := today.AddDate(0, 0, 1)
+	candidateDateTimeTomorrow := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), parsedTime.Hour(), parsedTime.Minute(), 0, 0, loc)
+	return candidateDateTimeTomorrow, nil
+}
+
+func resolveDateTimeYYYYMMDD(dateStr string, parsedTime time.Time, now time.Time, loc *time.Location) (time.Time, error) {
+	parsedDatePart, err := time.ParseInLocation("2006-01-02", dateStr, loc)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("could not parse time: %v", err)
+		return time.Time{}, fmt.Errorf("invalid date specified '%s': %w", dateStr, err)
 	}
+	scheduledTime := time.Date(parsedDatePart.Year(), parsedDatePart.Month(), parsedDatePart.Day(), parsedTime.Hour(), parsedTime.Minute(), 0, 0, loc)
+	if !scheduledTime.After(now) {
+		return time.Time{}, fmt.Errorf("scheduled time '%s' for date '%s' is already in the past -- must be in the future when using a specific date", parsedTime.Format("3:15pm"), dateStr)
+	}
+	return scheduledTime, nil
+}
 
-	year, month, day := now.Date()
-	if dateStr != "" {
-		dt, err := time.ParseInLocation("2006-01-02", dateStr, loc)
-		if err != nil {
-			return time.Time{}, fmt.Errorf("could not parse date: %v", err)
-		}
-		year, month, day = dt.Date()
-	} else {
-		candidate := time.Date(year, month, day, parsedTime.Hour(), parsedTime.Minute(), 0, 0, loc)
-		if !candidate.After(now) {
-			tomorrow := now.Add(24 * time.Hour)
-			year, month, day = tomorrow.Date()
-		}
+func resolveDateTimeDayOfWeek(dateStr string, parsedTime time.Time, now time.Time, loc *time.Location) (time.Time, error) {
+	targetWeekday, ok := dayOfWeekMap[dateStr]
+	if !ok {
+		return time.Time{}, fmt.Errorf("invalid day of week '%s'", dateStr)
 	}
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	currentWeekday := now.Weekday()
+	daysToAdd := int((targetWeekday - currentWeekday + 7) % 7)
+	candidateDate := today.AddDate(0, 0, daysToAdd)
+	candidateDateTime := time.Date(candidateDate.Year(), candidateDate.Month(), candidateDate.Day(), parsedTime.Hour(), parsedTime.Minute(), 0, 0, loc)
+	if !candidateDateTime.After(now) {
+		nextWeekDate := candidateDate.AddDate(0, 0, 7)
+		candidateDateTime = time.Date(nextWeekDate.Year(), nextWeekDate.Month(), nextWeekDate.Day(), parsedTime.Hour(), parsedTime.Minute(), 0, 0, loc)
+	}
+	return candidateDateTime, nil
+}
 
-	scheduled := time.Date(year, month, day, parsedTime.Hour(), parsedTime.Minute(), 0, 0, loc)
-	if scheduled.Before(now) {
-		return time.Time{}, errors.New("scheduled time is in the past")
+func resolveDateTimeShortDayMonth(dateStr string, parsedTime time.Time, now time.Time, loc *time.Location) (time.Time, error) {
+	matches := regexpShortDayMonth.FindStringSubmatch(dateStr)
+	if matches == nil {
+		return time.Time{}, fmt.Errorf("invalid short day/month format '%s'", dateStr)
 	}
-	return scheduled, nil
+	dayInt, _ := strconv.Atoi(matches[1])
+	monthAbbr := matches[2]
+	targetMonth, monthOk := monthAbbrMap[monthAbbr]
+	if !monthOk {
+		return time.Time{}, fmt.Errorf("invalid month '%s'", monthAbbr)
+	}
+	createAndValidateDate := func(year int) (time.Time, error) {
+		d := time.Date(year, targetMonth, dayInt, 0, 0, 0, 0, loc)
+		if d.Day() != dayInt || d.Month() != targetMonth || d.Year() != year {
+			return time.Time{}, fmt.Errorf("invalid date specified: %d%s", dayInt, monthAbbr)
+		}
+		return d, nil
+	}
+	candidateDateThisYear, err := createAndValidateDate(now.Year())
+	if err != nil {
+		return time.Time{}, err
+	}
+	candidateDateTimeThisYear := time.Date(candidateDateThisYear.Year(), candidateDateThisYear.Month(), candidateDateThisYear.Day(), parsedTime.Hour(), parsedTime.Minute(), 0, 0, loc)
+	if candidateDateTimeThisYear.After(now) {
+		return candidateDateTimeThisYear, nil
+	}
+	candidateDateNextYear, err := createAndValidateDate(now.Year() + 1)
+	if err != nil {
+		return time.Time{}, err
+	}
+	candidateDateTimeNextYear := time.Date(candidateDateNextYear.Year(), candidateDateNextYear.Month(), candidateDateNextYear.Day(), parsedTime.Hour(), parsedTime.Minute(), 0, 0, loc)
+	return candidateDateTimeNextYear, nil
+}
+
+func parseTimeStr(timeStr string, loc *time.Location) (time.Time, error) {
+	layouts := []string{"15:04", "3:04pm", "3pm"}
+	for _, layout := range layouts {
+		parsedTime, err := time.ParseInLocation(layout, timeStr, loc)
+		if err == nil {
+			return parsedTime, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("could not parse time: '%s'. Use formats like 9:30AM, 17:00, 5pm", timeStr)
+}
+
+func resolveScheduledTime(timeStr string, dateStr string, now time.Time, loc *time.Location) (time.Time, error) {
+	parsedTime, parseTimeErr := parseTimeStr(timeStr, loc)
+	if parseTimeErr != nil {
+		return parsedTime, parseTimeErr
+	}
+	format := determineDateFormat(dateStr)
+	switch format {
+	case dateFormatNone:
+		return resolveDateTimeNone(dateStr, parsedTime, now, loc)
+	case dateFormatYYYYMMDD:
+		return resolveDateTimeYYYYMMDD(dateStr, parsedTime, now, loc)
+	case dateFormatDayOfWeek:
+		return resolveDateTimeDayOfWeek(dateStr, parsedTime, now, loc)
+	case dateFormatShortDayMonth:
+		return resolveDateTimeShortDayMonth(dateStr, parsedTime, now, loc)
+	case dateFormatInvalid:
+		return time.Time{}, fmt.Errorf("invalid date format specified: '%s'. Use YYYY-MM-DD, day name (e.g., 'tuesday', 'fri'), or short date (e.g., '3jan', '25dec')", dateStr)
+	default:
+		return time.Time{}, errors.New("unknown date format detected")
+	}
 }
