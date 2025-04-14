@@ -155,6 +155,7 @@ func (h *Handler) scheduleHelp() *model.CommandResponse {
 	helpText := "\n### Schedule Messages Help\n\n" +
 		"Use the `/schedule` command to send messages at a future time. Your configured Mattermost timezone is used for scheduling.\n\n" +
 		"**Scheduling a Message:**\n\n" +
+		"Navigate to the channel or direct message where you want the scheduled message to be sent, then type:\n\n" +
 		"```\n/schedule at <time> [on <date>] message <message text>\n```\n\n" +
 		"*   `<time>`: Specify the time. Supported formats:\n" +
 		"    *   `15:04` (military time)\n" +
@@ -185,7 +186,11 @@ func (h *Handler) scheduleHelp() *model.CommandResponse {
 func (h *Handler) handleSchedule(args *model.CommandArgs, text string) *model.CommandResponse {
 	h.client.Log.Debug("Trying to schedule message", "user_id", args.UserId, "text", text)
 	if text == "" {
-		return h.scheduleHelp()
+		return &model.CommandResponse{
+			ResponseType: model.CommandResponseTypeEphemeral,
+			Text:         "Trying to schedule a message? Use `/schedule help` for instructions.",
+		}
+
 	}
 	parsed, parseInputErr := parseScheduleInput(text)
 	if parseInputErr != nil {
