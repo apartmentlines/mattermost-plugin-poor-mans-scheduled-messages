@@ -40,15 +40,15 @@ func (h *Handler) Register() error {
 }
 
 func (h *Handler) Execute(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	text := strings.TrimSpace(args.Command[len("/schedule"):])
+	commandText := strings.TrimSpace(args.Command[len("/schedule"):])
 
 	switch {
-	case strings.HasPrefix(text, "help"):
+	case strings.HasPrefix(commandText, "help"):
 		return h.scheduleHelp(), nil
-	case strings.HasPrefix(text, "list"):
+	case strings.HasPrefix(commandText, "list"):
 		return h.BuildEphemeralList(args), nil
 	default:
-		return h.handleSchedule(args, text), nil
+		return h.handleSchedule(args, commandText), nil
 	}
 }
 
@@ -146,10 +146,25 @@ func (h *Handler) scheduleDefinition() *model.Command {
 		Trigger:          "schedule",
 		AutoComplete:     true,
 		AutoCompleteDesc: "Schedule messages to be sent later",
-		AutoCompleteHint: "at <time> [on <date>] message <text> | list",
+		AutoCompleteHint: "[subcommand]",
+		AutocompleteData: h.getScheduleAutocompleteData(),
 		DisplayName:      "Schedule",
 		Description:      "Send messages at a future time.",
 	}
+}
+
+func (h *Handler) getScheduleAutocompleteData() *model.AutocompleteData {
+	schedule := model.NewAutocompleteData("schedule", "[subcommand]", "Schedule messages")
+	at := model.NewAutocompleteData("at", "<time> [on <date>] message <text>", "Schedule a new message")
+	at.AddTextArgument("Time", "Time to send the message, e.g. 3:15PM, 3pm", "")
+	at.AddTextArgument("Date", "(Optional) Date to send the message, e.g. 2026-01-01", "")
+	at.AddTextArgument("Message", "The message content", "")
+	schedule.AddCommand(at)
+	list := model.NewAutocompleteData("list", "", "List your scheduled messages")
+	schedule.AddCommand(list)
+	help := model.NewAutocompleteData("help", "", "Show help text")
+	schedule.AddCommand(help)
+	return schedule
 }
 
 func (h *Handler) scheduleHelp() *model.CommandResponse {
