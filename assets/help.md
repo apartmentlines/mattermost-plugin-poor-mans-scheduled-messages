@@ -1,9 +1,10 @@
 ### Scheduled messages
 
-**Need to send a message later?** Use the `/schedule` command.
-Type the command in the chat where you want your message to appear later. It will be sent automatically at the time you choose.
+**Need to send a message later?** Use the `/schedule` command -- it will be sent automatically at the time you choose.
 
 **How to schedule:**
+
+Switch to the channel or direct message where you want the message to appear, then type:
 
 `/schedule at <time> [on <date>] message <your message text>`
 
