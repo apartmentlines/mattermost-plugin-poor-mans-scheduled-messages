@@ -3,6 +3,10 @@
 [![Build Status](https://github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/actions/workflows/ci.yml/badge.svg)](https://github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/actions/workflows/ci.yml)
 [![E2E Status](https://github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/actions/workflows/e2e.yml/badge.svg)](https://github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/actions/workflows/e2e.yml)
 
+<div align="center">
+  <img src="logo.png" alt="Poor Man's Scheduled Messages logo">
+</div>
+
 ## Purpose
 
 The paid version of [Mattermost](https://mattermost.com) comes with [scheduled messages](https://docs.mattermost.com/collaborate/schedule-messages.html), but what about us poor schlubs on the free plan??
@@ -13,8 +17,8 @@ The Poor Man's Scheduled Messages plugin aims to fill this gap, albeit less eleg
 
 Until an official release is available:
 
-1. Clone this repository
-2. Make sure you have your Go development environment configuration
+1. Make sure you have your Go development environment configured
+2. Clone this repository
 3. From the repository root, run `make`
 4. Release tarballs will be available in the `dists/` directory
 5. Install the tarball via the Mattermost System Console or the `mmctl` CLI tool
