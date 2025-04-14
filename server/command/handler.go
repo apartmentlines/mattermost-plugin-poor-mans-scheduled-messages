@@ -190,7 +190,6 @@ func (h *Handler) handleSchedule(args *model.CommandArgs, text string) *model.Co
 			ResponseType: model.CommandResponseTypeEphemeral,
 			Text:         "Trying to schedule a message? Use `/schedule help` for instructions.",
 		}
-
 	}
 	parsed, parseInputErr := parseScheduleInput(text)
 	if parseInputErr != nil {
