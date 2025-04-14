@@ -49,13 +49,24 @@ func (h *Handler) Execute(args *model.CommandArgs) (*model.CommandResponse, *mod
 }
 
 func (h *Handler) BuildEphemeralList(args *model.CommandArgs) *model.CommandResponse {
+	h.client.Log.Debug("Building scheduled messages list", "user_id", args.UserId)
 	ids, err := h.store.ListUserMessageIDs(args.UserId)
-	if err != nil || len(ids) == 0 {
+	if err != nil {
+		message := fmt.Sprintf("❌ Error retrieving message list:  %v", err)
+		h.client.Log.Error(message, "user_id", args.UserId)
+		return &model.CommandResponse{
+			ResponseType: model.CommandResponseTypeEphemeral,
+			Text:         message,
+		}
+	}
+	idsLength := len(ids)
+	if idsLength == 0 {
 		return &model.CommandResponse{
 			ResponseType: model.CommandResponseTypeEphemeral,
 			Text:         "You have no scheduled messages.",
 		}
 	}
+	h.client.Log.Debug(fmt.Sprintf("Found %v scheduled message(s) in user index", idsLength), "user_id", args.UserId)
 
 	var msgs []*types.ScheduledMessage
 	for _, id := range ids {
@@ -64,6 +75,7 @@ func (h *Handler) BuildEphemeralList(args *model.CommandArgs) *model.CommandResp
 			// We don't have atomic operations for saving/deleting a message, so if it can't be found
 			// clean up the user index as a failsafe.
 			if msg.ID == "" {
+				h.client.Log.Warn(fmt.Sprintf("Cleaning missing message %v from user index", id), "user_id", args.UserId)
 				_ = h.store.CleanupMessageFromUserIndex(msg.UserID, id)
 			} else {
 				msgs = append(msgs, msg)
@@ -79,7 +91,7 @@ func (h *Handler) BuildEphemeralList(args *model.CommandArgs) *model.CommandResp
 		loc, _ := time.LoadLocation(m.Timezone)
 		localTime := m.PostAt.In(loc)
 		header := fmt.Sprintf("### %s\n%s",
-			localTime.Format("2006-01-02 15:04"), m.MessageContent)
+			localTime.Format("Jan 2, 2006 3:04 PM"), m.MessageContent)
 		attachments = append(attachments, createAttachment(header, m.ID))
 	}
 
@@ -137,11 +149,12 @@ func (h *Handler) scheduleDefinition() *model.Command {
 }
 
 func (h *Handler) handleSchedule(args *model.CommandArgs, text string) *model.CommandResponse {
+	h.client.Log.Debug("Trying to schedule message", "user_id", args.UserId, "text", text)
 	parsed, parseInputErr := parseScheduleInput(text)
 	if parseInputErr != nil {
 		return &model.CommandResponse{
 			ResponseType: model.CommandResponseTypeEphemeral,
-			Text:         fmt.Sprintf("Error: %v", parseInputErr),
+			Text:         fmt.Sprintf("Error: %v, Original input: `%v`", parseInputErr, text),
 		}
 	}
 
@@ -169,15 +182,19 @@ func (h *Handler) handleSchedule(args *model.CommandArgs, text string) *model.Co
 
 	saveErr := h.store.SaveScheduledMessage(args.UserId, msg)
 
-	if saveErr == nil {
+	if saveErr != nil {
+		message := fmt.Sprintf("❌ Error scheduling message for %s (%s):  %v", schedTime.Format("Jan 2, 2006 3:04 PM"), tz, saveErr)
+		h.client.Log.Error(message, "user_id", args.UserId)
 		return &model.CommandResponse{
 			ResponseType: model.CommandResponseTypeEphemeral,
-			Text:         fmt.Sprintf("✅ Scheduled message for %s (%s)", schedTime.Format("2006-01-02 15:04"), tz),
+			Text:         message,
 		}
 	}
+	message := fmt.Sprintf("✅ Scheduled message for %s (%s)", schedTime.Format("Jan 2, 2006 3:04 PM"), tz)
+	h.client.Log.Info(message, "user_id", args.UserId)
 	return &model.CommandResponse{
 		ResponseType: model.CommandResponseTypeEphemeral,
-		Text:         fmt.Sprintf("❌ Error scheduling message for %s (%s):  %v", schedTime.Format("2006-01-02 15:04"), tz, saveErr),
+		Text:         message,
 	}
 }
 
