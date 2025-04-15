@@ -21,14 +21,15 @@ type Plugin struct {
 	configurationLock sync.RWMutex
 	// configuration is the active plugin configuration. Consult getConfiguration and
 	// setConfiguration for usage.
-	configuration *configuration
-	client        *pluginapi.Client
-	BotID         string
-	Scheduler     *scheduler.Scheduler
-	Store         store.Store
-	Channel       *channel.Channel
-	Command       *command.Handler
-	helpText      string
+	configuration   *configuration
+	client          *pluginapi.Client
+	BotID           string
+	Scheduler       *scheduler.Scheduler
+	Store           store.Store
+	Channel         *channel.Channel
+	Command         *command.Handler
+	maxUserMessages int
+	helpText        string
 }
 
 func (p *Plugin) loadHelpText() error {
@@ -57,12 +58,13 @@ func (p *Plugin) OnActivate() error {
 		return botErr
 	}
 	p.BotID = botID
+	p.maxUserMessages = 1000
 	p.Channel = channel.New(p.client)
-	kvStore := store.NewKVStore(p.client)
+	kvStore := store.NewKVStore(p.client, p.maxUserMessages)
 	sched := scheduler.New(p.client, kvStore, p.Channel, p.BotID)
 	p.Scheduler = sched
 	p.Store = kvStore
-	p.Command = command.NewHandler(p.client, kvStore, sched, p.Channel, p.helpText)
+	p.Command = command.NewHandler(p.client, kvStore, sched, p.Channel, p.maxUserMessages, p.helpText)
 	if err := p.Command.Register(); err != nil {
 		return err
 	}

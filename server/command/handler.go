@@ -16,20 +16,22 @@ import (
 )
 
 type Handler struct {
-	client    *pluginapi.Client
-	store     store.Store
-	scheduler *scheduler.Scheduler
-	channel   *channel.Channel
-	helpText  string
+	client          *pluginapi.Client
+	store           store.Store
+	scheduler       *scheduler.Scheduler
+	channel         *channel.Channel
+	maxUserMessages int
+	helpText        string
 }
 
-func NewHandler(client *pluginapi.Client, store store.Store, sched *scheduler.Scheduler, channel *channel.Channel, helpText string) *Handler {
+func NewHandler(client *pluginapi.Client, store store.Store, sched *scheduler.Scheduler, channel *channel.Channel, maxUserMessages int, helpText string) *Handler {
 	return &Handler{
-		client:    client,
-		store:     store,
-		scheduler: sched,
-		channel:   channel,
-		helpText:  helpText,
+		client:          client,
+		store:           store,
+		scheduler:       sched,
+		channel:         channel,
+		maxUserMessages: maxUserMessages,
+		helpText:        helpText,
 	}
 }
 
@@ -181,8 +183,26 @@ func (h *Handler) scheduleHelp() *model.CommandResponse {
 	}
 }
 
+func (h *Handler) checkMaxUserMessages(userID string) error {
+	ids, userIndexErr := h.store.ListUserMessageIDs(userID)
+	if userIndexErr != nil {
+		return userIndexErr
+	}
+	if len(ids) >= h.maxUserMessages {
+		return fmt.Errorf("you cannot schedule more than %d messages", h.maxUserMessages)
+	}
+	return nil
+}
+
 func (h *Handler) handleSchedule(args *model.CommandArgs, text string) *model.CommandResponse {
 	h.client.Log.Debug("Trying to schedule message", "user_id", args.UserId, "text", text)
+	maxMessagesErr := h.checkMaxUserMessages(args.UserId)
+	if maxMessagesErr != nil {
+		return &model.CommandResponse{
+			ResponseType: model.CommandResponseTypeEphemeral,
+			Text:         fmt.Sprintf("❌ Error scheduling message: %v", maxMessagesErr),
+		}
+	}
 	if text == "" {
 		return &model.CommandResponse{
 			ResponseType: model.CommandResponseTypeEphemeral,

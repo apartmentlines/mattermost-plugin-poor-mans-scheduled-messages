@@ -20,11 +20,12 @@ type Store interface {
 }
 
 type kvStore struct {
-	client *pluginapi.Client
+	client          *pluginapi.Client
+	maxUserMessages int
 }
 
-func NewKVStore(client *pluginapi.Client) Store {
-	return &kvStore{client: client}
+func NewKVStore(client *pluginapi.Client, maxUserMessages int) Store {
+	return &kvStore{client: client, maxUserMessages: maxUserMessages}
 }
 
 func (s *kvStore) SaveScheduledMessage(userID string, msg *types.ScheduledMessage) error {
@@ -71,8 +72,7 @@ func (s *kvStore) GetScheduledMessage(msgID string) (*types.ScheduledMessage, er
 
 func (s *kvStore) ListAllScheduledIDs() (map[string]int64, error) {
 	results := make(map[string]int64)
-	// TODO: Make the count a constant, don't let a user schedule more than 1000 messages.
-	keys, err := s.client.KV.ListKeys(0, 1000, pluginapi.WithPrefix("schedmsg:"))
+	keys, err := s.client.KV.ListKeys(0, s.maxUserMessages, pluginapi.WithPrefix("schedmsg:"))
 	if err != nil {
 		return nil, err
 	}
