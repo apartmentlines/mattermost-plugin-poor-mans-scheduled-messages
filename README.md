@@ -14,13 +14,13 @@ The Poor Man's Scheduled Messages plugin aims to fill this gap, albeit less eleg
 
 ## Installation
 
-Until an official release is available:
+Until an official release is available, the latest release tarball can be installed...
 
-Install via [System Console](https://developers.mattermost.com/integrate/plugins/components/server/hello-world/#install-the-plugin)
+via [System Console](https://developers.mattermost.com/integrate/plugins/components/server/hello-world/#install-the-plugin)
 
 ...or...
 
-Install via [mmctl](https://docs.mattermost.com/manage/mmctl-command-line-tool.html#mmctl-plugin-add)
+via [mmctl](https://docs.mattermost.com/manage/mmctl-command-line-tool.html#mmctl-plugin-add)
 
 ## Usage
 
