@@ -23,6 +23,7 @@ type Plugin struct {
 	// setConfiguration for usage.
 	configuration *configuration
 	client        *pluginapi.Client
+	BotID         string
 	Scheduler     *scheduler.Scheduler
 	Store         store.Store
 	Channel       *channel.Channel
@@ -46,15 +47,21 @@ func (p *Plugin) loadHelpText() error {
 
 func (p *Plugin) OnActivate() error {
 	p.client = pluginapi.NewClient(p.API, p.Driver)
-	if err := p.loadHelpText(); err != nil {
-		p.API.LogError("Plugin activation failed: could not load help text.", "error", err.Error())
-		return err
+	if helpErr := p.loadHelpText(); helpErr != nil {
+		p.API.LogError("Plugin activation failed: could not load help text.", "error", helpErr.Error())
+		return helpErr
 	}
+	botID, botErr := EnsureBot(p.client)
+	if botErr != nil {
+		p.API.LogError("Plugin activation failed: could not ensure bot.", "error", botErr.Error())
+		return botErr
+	}
+	p.BotID = botID
+	p.Channel = channel.New(p.client)
 	kvStore := store.NewKVStore(p.client)
-	sched := scheduler.New(p.client, kvStore)
+	sched := scheduler.New(p.client, kvStore, p.Channel, p.BotID)
 	p.Scheduler = sched
 	p.Store = kvStore
-	p.Channel = channel.New(p.client)
 	p.Command = command.NewHandler(p.client, kvStore, sched, p.Channel, p.helpText)
 	if err := p.Command.Register(); err != nil {
 		return err
