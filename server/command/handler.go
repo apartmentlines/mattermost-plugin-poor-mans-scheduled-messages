@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/channel"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/scheduler"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
@@ -18,14 +19,16 @@ type Handler struct {
 	client    *pluginapi.Client
 	store     store.Store
 	scheduler *scheduler.Scheduler
+	channel   *channel.Channel
 	helpText  string
 }
 
-func NewHandler(client *pluginapi.Client, store store.Store, sched *scheduler.Scheduler, helpText string) *Handler {
+func NewHandler(client *pluginapi.Client, store store.Store, sched *scheduler.Scheduler, channel *channel.Channel, helpText string) *Handler {
 	return &Handler{
 		client:    client,
 		store:     store,
 		scheduler: sched,
+		channel:   channel,
 		helpText:  helpText,
 	}
 }
@@ -73,6 +76,7 @@ func (h *Handler) BuildEphemeralList(args *model.CommandArgs) *model.CommandResp
 	h.client.Log.Debug(fmt.Sprintf("Found %v scheduled message(s) in user index", idsLength), "user_id", args.UserId)
 
 	var msgs []*types.ScheduledMessage
+	channels := make(map[string]*channel.Info)
 	for _, id := range ids {
 		msg, err := h.store.GetScheduledMessage(id)
 		if err == nil {
@@ -82,6 +86,9 @@ func (h *Handler) BuildEphemeralList(args *model.CommandArgs) *model.CommandResp
 				h.client.Log.Warn(fmt.Sprintf("Cleaning missing message %v from user index", id), "user_id", args.UserId)
 				_ = h.store.CleanupMessageFromUserIndex(msg.UserID, id)
 			} else {
+				if _, exists := channels[msg.ChannelID]; !exists {
+					channels[msg.ChannelID] = h.channel.GetInfoOrUnknown(msg.ChannelID)
+				}
 				msgs = append(msgs, msg)
 			}
 		}
@@ -94,8 +101,8 @@ func (h *Handler) BuildEphemeralList(args *model.CommandArgs) *model.CommandResp
 	for _, m := range msgs {
 		loc, _ := time.LoadLocation(m.Timezone)
 		localTime := m.PostAt.In(loc)
-		header := fmt.Sprintf("### %s\n%s",
-			localTime.Format("Jan 2, 2006 3:04 PM"), m.MessageContent)
+		header := fmt.Sprintf("##### %s\n%s\n\n%s",
+			localTime.Format("Jan 2, 2006 3:04 PM"), h.channel.MakeChannelLink(channels[m.ChannelID]), m.MessageContent)
 		attachments = append(attachments, createAttachment(header, m.ID))
 	}
 
@@ -213,16 +220,17 @@ func (h *Handler) handleSchedule(args *model.CommandArgs, text string) *model.Co
 	}
 
 	saveErr := h.store.SaveScheduledMessage(args.UserId, msg)
+	channelInfo := h.channel.MakeChannelLink(h.channel.GetInfoOrUnknown(args.ChannelId))
 
 	if saveErr != nil {
-		message := fmt.Sprintf("❌ Error scheduling message for %s (%s):  %v", schedTime.Format("Jan 2, 2006 3:04 PM"), tz, saveErr)
+		message := fmt.Sprintf("❌ Error scheduling message for %s (%s) %s:  %v", schedTime.Format("Jan 2, 2006 3:04 PM"), tz, channelInfo, saveErr)
 		h.client.Log.Error(message, "user_id", args.UserId)
 		return &model.CommandResponse{
 			ResponseType: model.CommandResponseTypeEphemeral,
 			Text:         message,
 		}
 	}
-	message := fmt.Sprintf("✅ Scheduled message for %s (%s)", schedTime.Format("Jan 2, 2006 3:04 PM"), tz)
+	message := fmt.Sprintf("✅ Scheduled message for %s (%s) %s", schedTime.Format("Jan 2, 2006 3:04 PM"), tz, channelInfo)
 	h.client.Log.Info(message, "user_id", args.UserId)
 	return &model.CommandResponse{
 		ResponseType: model.CommandResponseTypeEphemeral,

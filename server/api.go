@@ -89,10 +89,11 @@ func (p *Plugin) sendDeletionConfirmation(userID string, channelID string, delet
 		loc = time.UTC
 	}
 	humanTime := deletedMsg.PostAt.In(loc).Format("Jan 2, 2006 3:04 PM")
+	channelInfo := p.Channel.MakeChannelLink(p.Channel.GetInfoOrUnknown(deletedMsg.ChannelID))
 	confirmation := &model.Post{
 		UserId:    userID,
 		ChannelId: channelID,
-		Message:   fmt.Sprintf("✅ Message scheduled for **%s** has been deleted.", humanTime),
+		Message:   fmt.Sprintf("✅ Message scheduled for **%s** %s has been deleted.", humanTime, channelInfo),
 	}
 	p.client.Post.SendEphemeralPost(userID, confirmation)
 	p.client.Log.Debug("Sent deletion confirmation", "user_id", userID, "channel_id", channelID)

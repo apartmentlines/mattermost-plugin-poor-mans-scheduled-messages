@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/channel"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/command"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/scheduler"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
@@ -24,6 +25,7 @@ type Plugin struct {
 	client        *pluginapi.Client
 	Scheduler     *scheduler.Scheduler
 	Store         store.Store
+	Channel       *channel.Channel
 	Command       *command.Handler
 	helpText      string
 }
@@ -52,13 +54,13 @@ func (p *Plugin) OnActivate() error {
 	sched := scheduler.New(p.client, kvStore)
 	p.Scheduler = sched
 	p.Store = kvStore
-	p.Command = command.NewHandler(p.client, kvStore, sched, p.helpText)
+	p.Channel = channel.New(p.client)
+	p.Command = command.NewHandler(p.client, kvStore, sched, p.Channel, p.helpText)
 	if err := p.Command.Register(); err != nil {
 		return err
 	}
 	go p.Scheduler.Start()
 	p.API.LogInfo("Scheduled Messages plugin activated.")
-
 	return nil
 }
 
