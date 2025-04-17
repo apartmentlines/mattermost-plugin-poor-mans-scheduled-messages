@@ -205,8 +205,8 @@ func TestScheduler_StartAndStop(t *testing.T) {
 func TestProcessDueMessages_LoadMessageError(t *testing.T) {
 	now := time.Now().UTC()
 	st := &fakeStore{
-		ids:     map[string]int64{"id": now.Add(-time.Minute).Unix()},
-		getErr:  errors.New("cannot load"),
+		ids:    map[string]int64{"id": now.Add(-time.Minute).Unix()},
+		getErr: errors.New("cannot load"),
 	}
 	poster := &fakePoster{}
 	s := newScheduler(st, poster, fakeClock{now})
@@ -222,12 +222,12 @@ func TestProcessDueMessages_LoadMessageError(t *testing.T) {
 func TestProcessDueMessages_DeleteScheduleError(t *testing.T) {
 	now := time.Now().UTC()
 	msg := &types.ScheduledMessage{
-		ID:        "id", UserID: "u", ChannelID: "c",
+		ID: "id", UserID: "u", ChannelID: "c",
 		PostAt: now.Add(-time.Minute), MessageContent: "x", Timezone: "UTC",
 	}
 	st := &fakeStore{
-		ids:      map[string]int64{"id": msg.PostAt.Unix()},
-		messages: map[string]*types.ScheduledMessage{"id": msg},
+		ids:       map[string]int64{"id": msg.PostAt.Unix()},
+		messages:  map[string]*types.ScheduledMessage{"id": msg},
 		deleteErr: errors.New("kv fail"),
 	}
 	poster := &fakePoster{}
