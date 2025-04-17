@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/channel"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/clock"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/command"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/scheduler"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
@@ -57,24 +58,33 @@ func (p *Plugin) OnActivate() error {
 		p.API.LogError("Plugin activation failed: could not ensure bot.", "error", botErr.Error())
 		return botErr
 	}
-	p.BotID = botID
-	p.maxUserMessages = 1000
-	p.Channel = channel.New(p.client)
-	kvStore := store.NewKVStore(p.client, p.maxUserMessages)
-	sched := scheduler.New(p.client, kvStore, p.Channel, p.BotID)
-	p.Scheduler = sched
-	p.Store = kvStore
-	p.Command = command.NewHandler(p.client, kvStore, sched, p.Channel, p.maxUserMessages, p.helpText)
-	if err := p.Command.Register(); err != nil {
-		return err
+	if initErr := p.initialize(botID); initErr != nil {
+		p.API.LogError("Plugin activation failed: could not initialize dependencies.", "error", initErr.Error())
+		return initErr
 	}
-	go p.Scheduler.Start()
 	p.API.LogInfo("Scheduled Messages plugin activated.")
 	return nil
 }
 
 func (p *Plugin) OnDeactivate() error {
 	p.Scheduler.Stop()
+	return nil
+}
+
+func (p *Plugin) initialize(botID string) error {
+	p.BotID = botID
+	p.maxUserMessages = 1000
+	p.Channel = channel.New(p.client)
+	kvStore := store.NewKVStore(p.client, p.maxUserMessages)
+	realClk := clock.NewReal()
+	sched := scheduler.New(p.client, kvStore, p.Channel, p.BotID, realClk)
+	p.Scheduler = sched
+	p.Store = kvStore
+	p.Command = command.NewHandler(p.client, kvStore, sched, p.Channel, p.maxUserMessages, realClk, p.helpText)
+	if err := p.Command.Register(); err != nil {
+		return err
+	}
+	go p.Scheduler.Start()
 	return nil
 }
 

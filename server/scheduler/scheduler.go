@@ -2,11 +2,12 @@ package scheduler
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/channel"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/clock"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/formatter"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -18,12 +19,13 @@ type Scheduler struct {
 	store   store.Store
 	channel *channel.Channel
 	botID   string
+	clock   clock.Clock
 	ctx     context.Context
 	cancel  context.CancelFunc
 	mu      sync.Mutex
 }
 
-func New(api *pluginapi.Client, store store.Store, channel *channel.Channel, botID string) *Scheduler {
+func New(api *pluginapi.Client, store store.Store, channel *channel.Channel, botID string, clk clock.Clock) *Scheduler {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Scheduler{
 		api:     api,
@@ -32,6 +34,7 @@ func New(api *pluginapi.Client, store store.Store, channel *channel.Channel, bot
 		botID:   botID,
 		ctx:     ctx,
 		cancel:  cancel,
+		clock:   clk,
 	}
 }
 
@@ -57,7 +60,7 @@ func (s *Scheduler) checkAndPostDueMessages() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	now := time.Now().UTC().Unix()
+	now := s.clock.Now().UTC().Unix()
 	ids, listErr := s.store.ListAllScheduledIDs()
 	if listErr != nil {
 		s.api.Log.Error("failed to list scheduled IDs", "err", listErr.Error())
@@ -97,7 +100,7 @@ func (s *Scheduler) checkAndPostDueMessages() {
 
 func (s *Scheduler) dmUserOnFailedMessage(msg *types.ScheduledMessage, postErr error) {
 	channelInfo := s.channel.MakeChannelLink(s.channel.GetInfoOrUnknown(msg.ChannelID))
-	message := fmt.Sprintf("❌ Error scheduling message %s: %v -- original message: %s", channelInfo, postErr, msg.MessageContent)
+	message := formatter.FormatSchedulerFailure(channelInfo, postErr, msg.MessageContent)
 	post := &model.Post{
 		Message: message,
 	}

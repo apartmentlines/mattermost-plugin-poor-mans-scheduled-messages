@@ -35,13 +35,9 @@ func (c *Channel) GetInfo(channelID string) (*Info, error) {
 		if listMembersErr != nil {
 			return nil, fmt.Errorf("failed to get members of channel %s: %w", channel.Id, listMembersErr)
 		}
-		usernames := []string{}
-		for _, member := range members {
-			user, userGetErr := c.api.User.Get(member.UserId)
-			if userGetErr != nil {
-				return nil, fmt.Errorf("failed to get user %s: %w", member.UserId, userGetErr)
-			}
-			usernames = append(usernames, "@"+user.Username)
+		usernames, err := c.mapMembersToUsernames(members)
+		if err != nil {
+			return nil, err
 		}
 		dmGroupName := strings.Join(usernames, ", ")
 		return &Info{
@@ -85,4 +81,16 @@ func (c *Channel) MakeChannelLink(channelInfo *Info) string {
 		return fmt.Sprintf("in direct message with: %s", channelInfo.ChannelLink)
 	}
 	return fmt.Sprintf("in channel: %s", channelInfo.ChannelLink)
+}
+
+func (c *Channel) mapMembersToUsernames(members []*model.ChannelMember) ([]string, error) {
+	var usernames []string
+	for _, member := range members {
+		user, err := c.api.User.Get(member.UserId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get user %s: %w", member.UserId, err)
+		}
+		usernames = append(usernames, "@"+user.Username)
+	}
+	return usernames, nil
 }

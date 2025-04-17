@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/channel"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/clock"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/formatter"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/scheduler"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
@@ -21,16 +23,18 @@ type Handler struct {
 	scheduler       *scheduler.Scheduler
 	channel         *channel.Channel
 	maxUserMessages int
+	clock           clock.Clock
 	helpText        string
 }
 
-func NewHandler(client *pluginapi.Client, store store.Store, sched *scheduler.Scheduler, channel *channel.Channel, maxUserMessages int, helpText string) *Handler {
+func NewHandler(client *pluginapi.Client, store store.Store, sched *scheduler.Scheduler, channel *channel.Channel, maxUserMessages int, clk clock.Clock, helpText string) *Handler {
 	return &Handler{
 		client:          client,
 		store:           store,
 		scheduler:       sched,
 		channel:         channel,
 		maxUserMessages: maxUserMessages,
+		clock:           clk,
 		helpText:        helpText,
 	}
 }
@@ -103,8 +107,7 @@ func (h *Handler) BuildEphemeralList(args *model.CommandArgs) *model.CommandResp
 	for _, m := range msgs {
 		loc, _ := time.LoadLocation(m.Timezone)
 		localTime := m.PostAt.In(loc)
-		header := fmt.Sprintf("##### %s\n%s\n\n%s",
-			localTime.Format("Jan 2, 2006 3:04 PM"), h.channel.MakeChannelLink(channels[m.ChannelID]), m.MessageContent)
+		header := formatter.FormatListAttachmentHeader(localTime, h.channel.MakeChannelLink(channels[m.ChannelID]), m.MessageContent)
 		attachments = append(attachments, createAttachment(header, m.ID))
 	}
 
@@ -219,7 +222,7 @@ func (h *Handler) handleSchedule(args *model.CommandArgs, text string) *model.Co
 
 	tz := h.GetUserTimezone(args.UserId)
 	loc, _ := time.LoadLocation(tz)
-	now := time.Now().In(loc)
+	now := h.clock.Now().In(loc)
 
 	schedTime, resolveErr := resolveScheduledTime(parsed.TimeStr, parsed.DateStr, now, loc)
 	if resolveErr != nil {
@@ -243,14 +246,14 @@ func (h *Handler) handleSchedule(args *model.CommandArgs, text string) *model.Co
 	channelInfo := h.channel.MakeChannelLink(h.channel.GetInfoOrUnknown(args.ChannelId))
 
 	if saveErr != nil {
-		message := fmt.Sprintf("❌ Error scheduling message for %s (%s) %s:  %v", schedTime.Format("Jan 2, 2006 3:04 PM"), tz, channelInfo, saveErr)
+		message := formatter.FormatScheduleError(schedTime, tz, channelInfo, saveErr)
 		h.client.Log.Error(message, "user_id", args.UserId)
 		return &model.CommandResponse{
 			ResponseType: model.CommandResponseTypeEphemeral,
 			Text:         message,
 		}
 	}
-	message := fmt.Sprintf("✅ Scheduled message for %s (%s) %s", schedTime.Format("Jan 2, 2006 3:04 PM"), tz, channelInfo)
+	message := formatter.FormatScheduleSuccess(schedTime, tz, channelInfo)
 	h.client.Log.Info(message, "user_id", args.UserId)
 	return &model.CommandResponse{
 		ResponseType: model.CommandResponseTypeEphemeral,
