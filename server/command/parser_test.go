@@ -1,9 +1,9 @@
 package command
 
 import (
+	"strings"
 	"testing"
 	"time"
-	"strings"
 )
 
 func TestParseScheduleInput(t *testing.T) {
@@ -275,7 +275,7 @@ func TestResolveDateTimeShortDayMonth(t *testing.T) {
 	defaultParsedTime := time.Date(2024, time.January, 15, 9, 0, 0, 0, loc)
 	tests := []struct {
 		dateStr     string
-		parsedTime time.Time
+		parsedTime  time.Time
 		want        time.Time
 		wantErr     bool
 		errContains string
