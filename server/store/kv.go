@@ -101,31 +101,22 @@ func (s *kvStore) GenerateMessageID() string {
 }
 
 func (s *kvStore) removeUserMessageFromIndex(userID, msgID string) (bool, error) {
-	key := indexKey(userID)
-	var ids []string
-	getErr := s.client.KV.Get(key, &ids)
-	if getErr != nil {
-		return false, getErr
-	}
-	i := slices.Index(ids, msgID)
-	if i != -1 {
-		ids = slices.Delete(ids, i, i+1)
-	}
-	return s.client.KV.Set(key, ids)
+	return s.updateUserIndex(userID, func(ids []string) ([]string, bool) {
+		idx := slices.Index(ids, msgID)
+		if idx == -1 {
+			return ids, false
+		}
+		return slices.Delete(ids, idx, idx+1), true
+	})
 }
 
 func (s *kvStore) addUserMessageToIndex(userID, msgID string) (bool, error) {
-	key := indexKey(userID)
-	var ids []string
-	getErr := s.client.KV.Get(key, &ids)
-	if getErr != nil {
-		return false, getErr
-	}
-	if slices.Contains(ids, msgID) {
-		return true, nil
-	}
-	ids = append(ids, msgID)
-	return s.client.KV.Set(key, ids)
+	return s.updateUserIndex(userID, func(ids []string) ([]string, bool) {
+		if slices.Contains(ids, msgID) {
+			return ids, false
+		}
+		return append(ids, msgID), true
+	})
 }
 
 func (s *kvStore) saveNewScheduledMessage(msg *types.ScheduledMessage) (bool, error) {
@@ -136,6 +127,22 @@ func (s *kvStore) saveNewScheduledMessage(msg *types.ScheduledMessage) (bool, er
 func (s *kvStore) deleteScheduledMessageByID(msgID string) error {
 	key := schedKey(msgID)
 	return s.client.KV.Delete(key)
+}
+
+func (s *kvStore) updateUserIndex(
+	userID string,
+	fn func([]string) ([]string, bool),
+) (bool, error) {
+	key := indexKey(userID)
+	var ids []string
+	if err := s.client.KV.Get(key, &ids); err != nil {
+		return false, err
+	}
+	newIDs, modified := fn(ids)
+	if !modified {
+		return false, nil
+	}
+	return s.client.KV.Set(key, newIDs)
 }
 
 func schedKey(id string) string {
