@@ -71,12 +71,15 @@ func parseScheduleInput(input string) (*ParsedSchedule, error) {
 	if matches == nil {
 		return nil, errors.New("invalid format. Use: `at <time> [on <date>] message <your message text>`")
 	}
-	time := strings.ToLower(strings.ReplaceAll(matches[1], " ", ""))
-	date := strings.ToLower(matches[2])
+	timeStr := strings.ToLower(strings.ReplaceAll(matches[1], " ", ""))
+	if len(timeStr) > 1 && timeStr[0] == '0' {
+		timeStr = timeStr[1:]
+	}
+	dateStr := strings.ToLower(matches[2])
 	message := matches[3]
 	return &ParsedSchedule{
-		TimeStr: time,
-		DateStr: date,
+		TimeStr: timeStr,
+		DateStr: dateStr,
 		Message: message,
 	}, nil
 }
@@ -102,7 +105,7 @@ func determineDateFormat(dateStr string) dateFormat {
 	return dateFormatInvalid
 }
 
-func resolveDateTimeNone(_ string, parsedTime time.Time, now time.Time, loc *time.Location) (time.Time, error) {
+func resolveDateTimeNone(parsedTime time.Time, now time.Time, loc *time.Location) (time.Time, error) {
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 	candidateDateTimeToday := time.Date(today.Year(), today.Month(), today.Day(), parsedTime.Hour(), parsedTime.Minute(), 0, 0, loc)
 	if candidateDateTimeToday.After(now) {
@@ -177,7 +180,7 @@ func resolveDateTimeShortDayMonth(dateStr string, parsedTime time.Time, now time
 }
 
 func parseTimeStr(timeStr string, loc *time.Location) (time.Time, error) {
-	layouts := []string{"15:04", "3:04pm", "3pm"}
+	layouts := []string{"15:04", "3:04pm", "3:04PM", "3pm", "3PM"}
 	for _, layout := range layouts {
 		parsedTime, err := time.ParseInLocation(layout, timeStr, loc)
 		if err == nil {
@@ -195,7 +198,7 @@ func resolveScheduledTime(timeStr string, dateStr string, now time.Time, loc *ti
 	format := determineDateFormat(dateStr)
 	switch format {
 	case dateFormatNone:
-		return resolveDateTimeNone(dateStr, parsedTime, now, loc)
+		return resolveDateTimeNone(parsedTime, now, loc)
 	case dateFormatYYYYMMDD:
 		return resolveDateTimeYYYYMMDD(dateStr, parsedTime, now, loc)
 	case dateFormatDayOfWeek:
