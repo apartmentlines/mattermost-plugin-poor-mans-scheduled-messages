@@ -13,7 +13,8 @@ func EnsureBot(api *pluginapi.Client) (string, error) {
 		DisplayName: "Message Scheduler",
 		Description: "Poor Man's Scheduled Messages Bot",
 	}
-	botUserID, err := api.Bot.EnsureBot(bot)
+	profileImage := pluginapi.ProfileImagePath("assets/profile.png")
+	botUserID, err := api.Bot.EnsureBot(bot, profileImage)
 	if err != nil {
 		return "", fmt.Errorf("failed to ensure bot: %w", err)
 	}
