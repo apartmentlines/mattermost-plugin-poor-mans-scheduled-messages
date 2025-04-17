@@ -77,7 +77,7 @@ func (p *Plugin) initialize(botID string) error {
 	p.Channel = channel.New(p.client)
 	kvStore := store.NewKVStore(p.client, p.maxUserMessages)
 	realClk := clock.NewReal()
-	sched := scheduler.New(p.client, kvStore, p.Channel, p.BotID, realClk)
+	sched := scheduler.New(&p.client.Post, &p.client.Log, kvStore, p.Channel, p.BotID, realClk)
 	p.Scheduler = sched
 	p.Store = kvStore
 	p.Command = command.NewHandler(p.client, kvStore, sched, p.Channel, p.maxUserMessages, realClk, p.helpText)
