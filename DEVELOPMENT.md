@@ -93,6 +93,11 @@ We use two strategies for test doubles:
 
 #### Generating mocks
 
+ 1 Make sure each interface you want mocked has a //go:generate mockgen ... comment. Example:
+
+    //go:generate mockgen -destination=../../adapters/mock/post_mock.go -package=mock \
+        github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports PostService
+
 1. Regenerate all mocks whenever an interface in `internal/ports` changes:
 
        make mocks
