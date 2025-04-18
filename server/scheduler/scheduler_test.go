@@ -6,277 +6,282 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/adapters/mock"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/testutil"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
+	"github.com/golang/mock/gomock"
 	"github.com/mattermost/mattermost/server/public/model"
 )
 
-type fakeClock struct{ now time.Time }
-
-func (f fakeClock) Now() time.Time { return f.now }
-
-type stubLinker struct{}
-
-func (stubLinker) GetInfoOrUnknown(string) *ports.ChannelInfo { return &ports.ChannelInfo{} }
-func (stubLinker) MakeChannelLink(*ports.ChannelInfo) string  { return "stub link" }
-
-type fakePoster struct {
-	createCalled int32
-	dmCalled     int32
-	createErr    error
-	dmErr        error
-}
-
-func (p *fakePoster) CreatePost(*model.Post) error {
-	p.createCalled++
-	return p.createErr
-}
-
-func (p *fakePoster) DM(_, _ string, _ *model.Post) error {
-	p.dmCalled++
-	return p.dmErr
-}
-
-func (p *fakePoster) UpdateEphemeralPost(string, *model.Post) {}
-func (p *fakePoster) SendEphemeralPost(string, *model.Post)   {}
-
-type fakeLogger struct{}
-
-func (fakeLogger) Error(string, ...any) {}
-func (fakeLogger) Warn(string, ...any)  {}
-func (fakeLogger) Info(string, ...any)  {}
-func (fakeLogger) Debug(string, ...any) {}
-
-type fakeStore struct {
-	ids          map[string]int64
-	listErr      error
-	messages     map[string]*types.ScheduledMessage
-	getErr       error
-	deleteErr    error
-	deleteCalled int32
-	getCalled    int32
-}
-
-func (fs *fakeStore) SaveScheduledMessage(string, *types.ScheduledMessage) error { return nil }
-func (fs *fakeStore) DeleteScheduledMessage(string, string) error {
-	fs.deleteCalled++
-	return fs.deleteErr
-}
-func (fs *fakeStore) CleanupMessageFromUserIndex(string, string) error { return nil }
-func (fs *fakeStore) GetScheduledMessage(id string) (*types.ScheduledMessage, error) {
-	fs.getCalled++
-	if fs.getErr != nil {
-		return nil, fs.getErr
-	}
-	msg, ok := fs.messages[id]
-	if !ok {
-		return nil, errors.New("not found")
-	}
-	return msg, nil
-}
-func (fs *fakeStore) ListAllScheduledIDs() (map[string]int64, error) { return fs.ids, fs.listErr }
-func (fs *fakeStore) ListUserMessageIDs(string) ([]string, error)    { return nil, nil }
-func (fs *fakeStore) GenerateMessageID() string                      { return "gen" }
-
-func newScheduler(st store.Store, poster *fakePoster, clk ports.Clock) *Scheduler {
-	return New(fakeLogger{}, poster, st, &stubLinker{}, "bot", clk)
-}
-
 func TestProcessDueMessages_PostSuccess(t *testing.T) {
-	now := time.Now().UTC()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPoster := mock.NewMockPostService(ctrl)
+	mockKV := mock.NewMockKVService(ctrl)
+	mockChannel := mock.NewMockChannelService(ctrl)
+
+	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, testutil.MaxUserMessages)
+	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
+	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
+
+	now := clk.Now()
 	msg := &types.ScheduledMessage{
-		ID:             "id",
+		ID:             "uuid-1",
 		UserID:         "user",
 		ChannelID:      "chan",
 		PostAt:         now.Add(-time.Minute),
 		MessageContent: "hi",
 		Timezone:       "UTC",
 	}
-	st := &fakeStore{
-		ids:      map[string]int64{"id": msg.PostAt.Unix()},
-		messages: map[string]*types.ScheduledMessage{"id": msg},
-	}
-	poster := &fakePoster{}
-	s := newScheduler(st, poster, fakeClock{now})
+	msgKey := testutil.SchedKey(msg.ID)
+	userIndexKey := testutil.IndexKey(msg.UserID)
+
+	mockKV.EXPECT().ListKeys(0, testutil.MaxUserMessages, gomock.Any()).Return([]string{msgKey}, nil)
+	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msg).Return(nil).Times(2)
+	mockKV.EXPECT().Get(userIndexKey, gomock.Any()).SetArg(1, []string{msg.ID}).Return(nil)
+	mockKV.EXPECT().Set(userIndexKey, gomock.Eq([]string{})).Return(true, nil)
+	mockKV.EXPECT().Delete(msgKey).Return(nil)
+	mockPoster.EXPECT().CreatePost(gomock.Eq(&model.Post{
+		ChannelId: msg.ChannelID,
+		Message:   msg.MessageContent,
+		UserId:    msg.UserID,
+	})).Return(nil)
 
 	s.processDueMessages()
-
-	if poster.createCalled != 1 {
-		t.Fatalf("expected createCalled 1 got %d", poster.createCalled)
-	}
-	if st.deleteCalled != 1 {
-		t.Fatalf("expected deleteCalled 1 got %d", st.deleteCalled)
-	}
 }
 
 func TestProcessDueMessages_PostFailure(t *testing.T) {
-	now := time.Now().UTC()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPoster := mock.NewMockPostService(ctrl)
+	mockKV := mock.NewMockKVService(ctrl)
+	mockChannel := mock.NewMockChannelService(ctrl)
+
+	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, testutil.MaxUserMessages)
+	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
+	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
+
+	now := clk.Now()
 	msg := &types.ScheduledMessage{
-		ID:             "id",
+		ID:             "uuid-2",
 		UserID:         "user",
 		ChannelID:      "chan",
 		PostAt:         now.Add(-time.Minute),
 		MessageContent: "hi",
 		Timezone:       "UTC",
 	}
-	st := &fakeStore{
-		ids:      map[string]int64{"id": msg.PostAt.Unix()},
-		messages: map[string]*types.ScheduledMessage{"id": msg},
-	}
-	poster := &fakePoster{createErr: errors.New("fail")}
-	s := newScheduler(st, poster, fakeClock{now})
+	msgKey := testutil.SchedKey(msg.ID)
+	userIndexKey := testutil.IndexKey(msg.UserID)
+	postErr := errors.New("fail")
+	channelInfo := &ports.ChannelInfo{ChannelID: msg.ChannelID, ChannelLink: "some-link"}
+
+	mockKV.EXPECT().ListKeys(0, testutil.MaxUserMessages, gomock.Any()).Return([]string{msgKey}, nil)
+	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msg).Return(nil).Times(2)
+	mockKV.EXPECT().Get(userIndexKey, gomock.Any()).SetArg(1, []string{msg.ID}).Return(nil)
+	mockKV.EXPECT().Set(userIndexKey, gomock.Eq([]string{})).Return(true, nil)
+	mockKV.EXPECT().Delete(msgKey).Return(nil)
+	mockPoster.EXPECT().CreatePost(gomock.Any()).Return(postErr)
+	mockChannel.EXPECT().GetInfoOrUnknown(msg.ChannelID).Return(channelInfo)
+	mockChannel.EXPECT().MakeChannelLink(channelInfo).Return("in channel: some-link")
+	mockPoster.EXPECT().DM("bot", msg.UserID, gomock.Any()).Return(nil)
 
 	s.processDueMessages()
-
-	if poster.dmCalled != 1 {
-		t.Fatalf("expected dmCalled 1 got %d", poster.dmCalled)
-	}
 }
 
 func TestProcessDueMessages_NotDueYet(t *testing.T) {
-	now := time.Now().UTC()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPoster := mock.NewMockPostService(ctrl)
+	mockKV := mock.NewMockKVService(ctrl)
+	mockChannel := mock.NewMockChannelService(ctrl)
+
+	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, testutil.MaxUserMessages)
+	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
+	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
+
+	now := clk.Now()
 	msg := &types.ScheduledMessage{
-		ID:             "id",
+		ID:             "uuid-3",
 		UserID:         "user",
 		ChannelID:      "chan",
 		PostAt:         now.Add(time.Minute),
 		MessageContent: "hi",
 		Timezone:       "UTC",
 	}
-	st := &fakeStore{
-		ids:      map[string]int64{"id": msg.PostAt.Unix()},
-		messages: map[string]*types.ScheduledMessage{"id": msg},
-	}
-	poster := &fakePoster{}
-	s := newScheduler(st, poster, fakeClock{now})
+	msgKey := testutil.SchedKey(msg.ID)
+
+	mockKV.EXPECT().ListKeys(0, testutil.MaxUserMessages, gomock.Any()).Return([]string{msgKey}, nil)
+	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msg).Return(nil)
 
 	s.processDueMessages()
-
-	if poster.createCalled != 0 {
-		t.Fatalf("expected createCalled 0 got %d", poster.createCalled)
-	}
 }
 
 func TestProcessDueMessages_ListError(t *testing.T) {
-	st := &fakeStore{listErr: errors.New("boom")}
-	poster := &fakePoster{}
-	s := newScheduler(st, poster, fakeClock{time.Now().UTC()})
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPoster := mock.NewMockPostService(ctrl)
+	mockKV := mock.NewMockKVService(ctrl)
+	mockChannel := mock.NewMockChannelService(ctrl)
+
+	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, testutil.MaxUserMessages)
+	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
+	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
+
+	mockKV.EXPECT().ListKeys(0, testutil.MaxUserMessages, gomock.Any()).Return(nil, errors.New("boom"))
 
 	s.processDueMessages()
-
-	if poster.createCalled != 0 {
-		t.Fatalf("should not create post on list error")
-	}
 }
 
 func TestScheduler_StartAndStop(t *testing.T) {
-	now := time.Now().UTC()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPoster := mock.NewMockPostService(ctrl)
+	mockKV := mock.NewMockKVService(ctrl)
+	mockChannel := mock.NewMockChannelService(ctrl)
+
+	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, testutil.MaxUserMessages)
+	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
+	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
+	s.newTicker = func(d time.Duration) *time.Ticker { return time.NewTicker(1 * time.Millisecond) }
+
+	now := clk.Now()
 	msg := &types.ScheduledMessage{
-		ID:             "id",
+		ID:             "uuid-4",
 		UserID:         "user",
 		ChannelID:      "chan",
 		PostAt:         now.Add(-time.Minute),
 		MessageContent: "hi",
 		Timezone:       "UTC",
 	}
-	st := &fakeStore{
-		ids:      map[string]int64{"id": msg.PostAt.Unix()},
-		messages: map[string]*types.ScheduledMessage{"id": msg},
-	}
-	poster := &fakePoster{}
-	s := newScheduler(st, poster, fakeClock{now})
-	s.newTicker = func(time.Duration) *time.Ticker { return time.NewTicker(1 * time.Millisecond) }
+	msgKey := testutil.SchedKey(msg.ID)
+	userIndexKey := testutil.IndexKey(msg.UserID)
+
+	mockKV.EXPECT().ListKeys(0, testutil.MaxUserMessages, gomock.Any()).Return([]string{msgKey}, nil).MinTimes(1)
+	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msg).Return(nil).MinTimes(2)
+	mockKV.EXPECT().Get(userIndexKey, gomock.Any()).SetArg(1, []string{msg.ID}).Return(nil).MinTimes(1)
+	mockKV.EXPECT().Set(userIndexKey, gomock.Eq([]string{})).Return(true, nil).MinTimes(1)
+	mockKV.EXPECT().Delete(msgKey).Return(nil).MinTimes(1)
+	mockPoster.EXPECT().CreatePost(gomock.Any()).Return(nil).MinTimes(1)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		s.Start()
+		s.Start() // This blocks until Stop() is called
 		wg.Done()
 	}()
-	time.Sleep(5 * time.Millisecond)
+
+	time.Sleep(10 * time.Millisecond)
 	s.Stop()
 	wg.Wait()
-
-	if poster.createCalled == 0 {
-		t.Fatalf("expected at least one create post call")
-	}
 }
 
 func TestProcessDueMessages_LoadMessageError(t *testing.T) {
-	now := time.Now().UTC()
-	st := &fakeStore{
-		ids:    map[string]int64{"id": now.Add(-time.Minute).Unix()},
-		getErr: errors.New("cannot load"),
-	}
-	poster := &fakePoster{}
-	s := newScheduler(st, poster, fakeClock{now})
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPoster := mock.NewMockPostService(ctrl)
+	mockKV := mock.NewMockKVService(ctrl)
+	mockChannel := mock.NewMockChannelService(ctrl)
+
+	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, testutil.MaxUserMessages)
+	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
+	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
+
+	now := clk.Now()
+	msgID := "uuid-5"
+	postAt := now.Add(-time.Minute)
+	msgForList := &types.ScheduledMessage{ID: msgID, PostAt: postAt}
+	msgKey := testutil.SchedKey(msgID)
+
+	mockKV.EXPECT().ListKeys(0, testutil.MaxUserMessages, gomock.Any()).Return([]string{msgKey}, nil)
+	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msgForList).Return(nil)
+	mockKV.EXPECT().Get(msgKey, gomock.Any()).Return(errors.New("cannot load"))
 
 	s.processDueMessages()
-
-	if poster.createCalled != 0 || poster.dmCalled != 0 || st.deleteCalled != 0 {
-		t.Fatalf("unexpected calls: create=%d dm=%d delete=%d",
-			poster.createCalled, poster.dmCalled, st.deleteCalled)
-	}
 }
 
 func TestProcessDueMessages_DeleteScheduleError(t *testing.T) {
-	now := time.Now().UTC()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPoster := mock.NewMockPostService(ctrl)
+	mockKV := mock.NewMockKVService(ctrl)
+	mockChannel := mock.NewMockChannelService(ctrl)
+
+	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, testutil.MaxUserMessages)
+	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
+	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
+
+	now := clk.Now()
 	msg := &types.ScheduledMessage{
-		ID: "id", UserID: "u", ChannelID: "c",
+		ID: "uuid-6", UserID: "u", ChannelID: "c",
 		PostAt: now.Add(-time.Minute), MessageContent: "x", Timezone: "UTC",
 	}
-	st := &fakeStore{
-		ids:       map[string]int64{"id": msg.PostAt.Unix()},
-		messages:  map[string]*types.ScheduledMessage{"id": msg},
-		deleteErr: errors.New("kv fail"),
-	}
-	poster := &fakePoster{}
-	s := newScheduler(st, poster, fakeClock{now})
+	msgKey := testutil.SchedKey(msg.ID)
+
+	mockKV.EXPECT().ListKeys(0, testutil.MaxUserMessages, gomock.Any()).Return([]string{msgKey}, nil)
+	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msg).Return(nil).Times(2)
+	mockKV.EXPECT().Delete(msgKey).Return(errors.New("kv fail"))
 
 	s.processDueMessages()
-
-	if st.deleteCalled != 1 {
-		t.Fatalf("delete not attempted")
-	}
-	if poster.createCalled != 0 || poster.dmCalled != 0 {
-		t.Fatalf("post or dm should not be called on delete error")
-	}
 }
 
 func TestProcessDueMessages_DMError(t *testing.T) {
-	now := time.Now().UTC()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPoster := mock.NewMockPostService(ctrl)
+	mockKV := mock.NewMockKVService(ctrl)
+	mockChannel := mock.NewMockChannelService(ctrl)
+
+	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, testutil.MaxUserMessages)
+	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
+	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
+
+	now := clk.Now()
 	msg := &types.ScheduledMessage{
-		ID: "id", UserID: "u", ChannelID: "c",
+		ID: "uuid-7", UserID: "u", ChannelID: "c",
 		PostAt: now.Add(-time.Minute), MessageContent: "x", Timezone: "UTC",
 	}
-	st := &fakeStore{
-		ids:      map[string]int64{"id": msg.PostAt.Unix()},
-		messages: map[string]*types.ScheduledMessage{"id": msg},
-	}
-	poster := &fakePoster{
-		createErr: errors.New("post fail"),
-		dmErr:     errors.New("dm fail"),
-	}
-	s := newScheduler(st, poster, fakeClock{now})
+	msgKey := testutil.SchedKey(msg.ID)
+	userIndexKey := testutil.IndexKey(msg.UserID)
+	postErr := errors.New("post fail")
+	dmErr := errors.New("dm fail")
+	channelInfo := &ports.ChannelInfo{ChannelID: msg.ChannelID, ChannelLink: "some-link"}
+
+	mockKV.EXPECT().ListKeys(0, testutil.MaxUserMessages, gomock.Any()).Return([]string{msgKey}, nil)
+	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msg).Return(nil).Times(2)
+	mockKV.EXPECT().Get(userIndexKey, gomock.Any()).SetArg(1, []string{msg.ID}).Return(nil)
+	mockKV.EXPECT().Set(userIndexKey, gomock.Eq([]string{})).Return(true, nil)
+	mockKV.EXPECT().Delete(msgKey).Return(nil)
+	mockPoster.EXPECT().CreatePost(gomock.Any()).Return(postErr)
+	mockChannel.EXPECT().GetInfoOrUnknown(msg.ChannelID).Return(channelInfo)
+	mockChannel.EXPECT().MakeChannelLink(channelInfo).Return("in channel: some-link")
+	mockPoster.EXPECT().DM("bot", msg.UserID, gomock.Any()).Return(dmErr)
 
 	s.processDueMessages()
-
-	if poster.createCalled != 1 || poster.dmCalled != 1 {
-		t.Fatalf("expected create=1 dm=1 got create=%d dm=%d",
-			poster.createCalled, poster.dmCalled)
-	}
 }
 
 func TestProcessDueMessages_EmptyIDMap(t *testing.T) {
-	st := &fakeStore{ids: map[string]int64{}}
-	poster := &fakePoster{}
-	s := newScheduler(st, poster, fakeClock{time.Now().UTC()})
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPoster := mock.NewMockPostService(ctrl)
+	mockKV := mock.NewMockKVService(ctrl)
+	mockChannel := mock.NewMockChannelService(ctrl)
+
+	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, testutil.MaxUserMessages)
+	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
+	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
+
+	mockKV.EXPECT().ListKeys(0, testutil.MaxUserMessages, gomock.Any()).Return([]string{}, nil)
 
 	s.processDueMessages()
-
-	if poster.createCalled != 0 || poster.dmCalled != 0 || st.deleteCalled != 0 {
-		t.Fatalf("no operations expected, got create=%d dm=%d delete=%d",
-			poster.createCalled, poster.dmCalled, st.deleteCalled)
-	}
 }
