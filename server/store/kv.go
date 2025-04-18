@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/google/uuid"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
@@ -20,12 +21,13 @@ type Store interface {
 }
 
 type kvStore struct {
-	client          *pluginapi.Client
+	logger          ports.Logger
+	kv              ports.KVService
 	maxUserMessages int
 }
 
-func NewKVStore(client *pluginapi.Client, maxUserMessages int) Store {
-	return &kvStore{client: client, maxUserMessages: maxUserMessages}
+func NewKVStore(logger ports.Logger, kv ports.KVService, maxUserMessages int) Store {
+	return &kvStore{logger: logger, kv: kv, maxUserMessages: maxUserMessages}
 }
 
 func (s *kvStore) SaveScheduledMessage(userID string, msg *types.ScheduledMessage) error {
@@ -63,7 +65,7 @@ func (s *kvStore) CleanupMessageFromUserIndex(userID string, msgID string) error
 func (s *kvStore) GetScheduledMessage(msgID string) (*types.ScheduledMessage, error) {
 	var msg types.ScheduledMessage
 	key := schedKey(msgID)
-	err := s.client.KV.Get(key, &msg)
+	err := s.kv.Get(key, &msg)
 	if err != nil {
 		return nil, err
 	}
@@ -72,13 +74,13 @@ func (s *kvStore) GetScheduledMessage(msgID string) (*types.ScheduledMessage, er
 
 func (s *kvStore) ListAllScheduledIDs() (map[string]int64, error) {
 	results := make(map[string]int64)
-	keys, err := s.client.KV.ListKeys(0, s.maxUserMessages, pluginapi.WithPrefix("schedmsg:"))
+	keys, err := s.kv.ListKeys(0, s.maxUserMessages, pluginapi.WithPrefix("schedmsg:"))
 	if err != nil {
 		return nil, err
 	}
 	for _, key := range keys {
 		var msg types.ScheduledMessage
-		err := s.client.KV.Get(key, &msg)
+		err := s.kv.Get(key, &msg)
 		if err == nil {
 			results[msg.ID] = msg.PostAt.Unix()
 		}
@@ -89,7 +91,7 @@ func (s *kvStore) ListAllScheduledIDs() (map[string]int64, error) {
 func (s *kvStore) ListUserMessageIDs(userID string) ([]string, error) {
 	var ids []string
 	key := indexKey(userID)
-	err := s.client.KV.Get(key, &ids)
+	err := s.kv.Get(key, &ids)
 	if err != nil {
 		return nil, err
 	}
@@ -121,12 +123,12 @@ func (s *kvStore) addUserMessageToIndex(userID, msgID string) (bool, error) {
 
 func (s *kvStore) saveNewScheduledMessage(msg *types.ScheduledMessage) (bool, error) {
 	key := schedKey(msg.ID)
-	return s.client.KV.Set(key, msg)
+	return s.kv.Set(key, msg)
 }
 
 func (s *kvStore) deleteScheduledMessageByID(msgID string) error {
 	key := schedKey(msgID)
-	return s.client.KV.Delete(key)
+	return s.kv.Delete(key)
 }
 
 func (s *kvStore) updateUserIndex(
@@ -135,14 +137,14 @@ func (s *kvStore) updateUserIndex(
 ) (bool, error) {
 	key := indexKey(userID)
 	var ids []string
-	if err := s.client.KV.Get(key, &ids); err != nil {
+	if err := s.kv.Get(key, &ids); err != nil {
 		return false, err
 	}
 	newIDs, modified := fn(ids)
 	if !modified {
 		return false, nil
 	}
-	return s.client.KV.Set(key, newIDs)
+	return s.kv.Set(key, newIDs)
 }
 
 func schedKey(id string) string {

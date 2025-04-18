@@ -34,20 +34,20 @@ func (p *Plugin) MattermostAuthorizationRequired(next http.Handler) http.Handler
 
 func (p *Plugin) UserDeleteMessage(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
-	p.client.Log.Debug("Received request to delete message", "user_id", userID)
+	p.logger.Debug("Received request to delete message", "user_id", userID)
 	req, msgID, err := parseDeleteRequest(r)
 	if err != nil {
-		p.client.Log.Warn("Failed to parse delete request", "error", err, "user_id", userID)
+		p.logger.Warn("Failed to parse delete request", "error", err, "user_id", userID)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	deletedMsg, err := p.Command.UserDeleteMessage(userID, msgID)
 	if err != nil {
-		p.client.Log.Error("Failed to delete message", "error", err, "user_id", userID, "message_id", msgID)
+		p.logger.Error("Failed to delete message", "error", err, "user_id", userID, "message_id", msgID)
 		http.Error(w, fmt.Sprintf("Failed to delete message: %v", err), http.StatusInternalServerError)
 		return
 	}
-	p.client.Log.Debug("Deleted message", "user_id", userID, "message_id", msgID)
+	p.logger.Debug("Deleted message", "user_id", userID, "message_id", msgID)
 	args := &model.CommandArgs{
 		UserId: userID,
 	}
@@ -78,8 +78,8 @@ func (p *Plugin) updateEphemeralPostWithList(userID string, postID string, chann
 			"attachments": updatedList.Props["attachments"],
 		},
 	}
-	p.client.Post.UpdateEphemeralPost(userID, updatedPost)
-	p.client.Log.Debug("Updated ephemeral post with current scheduled task list", "user_id", userID, "post_id", postID)
+	p.poster.UpdateEphemeralPost(userID, updatedPost)
+	p.logger.Debug("Updated ephemeral post with current scheduled task list", "user_id", userID, "post_id", postID)
 }
 
 func (p *Plugin) sendDeletionConfirmation(userID string, channelID string, deletedMsg *types.ScheduledMessage) {
@@ -95,6 +95,6 @@ func (p *Plugin) sendDeletionConfirmation(userID string, channelID string, delet
 		ChannelId: channelID,
 		Message:   fmt.Sprintf("✅ Message scheduled for **%s** %s has been deleted.", humanTime, channelInfo),
 	}
-	p.client.Post.SendEphemeralPost(userID, confirmation)
-	p.client.Log.Debug("Sent deletion confirmation", "user_id", userID, "channel_id", channelID)
+	p.poster.SendEphemeralPost(userID, confirmation)
+	p.logger.Debug("Sent deletion confirmation", "user_id", userID, "channel_id", channelID)
 }

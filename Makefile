@@ -170,21 +170,17 @@ install-go-tools:
 ## Runs eslint and golangci-lint
 .PHONY: check-style
 check-style: manifest-check apply webapp/node_modules install-go-tools
-	@echo Checking for style guide compliance
+	@echo "Checking for style guide compliance"
 
-ifneq ($(HAS_WEBAPP),)
-	cd webapp && npm run lint
-	cd webapp && npm run check-types
-endif
+	@if [ -n "$(HAS_WEBAPP)" ]; then \
+		cd webapp && npm run lint && npm run check-types; \
+	fi
 
-# It's highly recommended to run go-vet first
-# to find potential compile errors that could introduce
-# weird reports at golangci-lint step
-ifneq ($(HAS_SERVER),)
-	@echo Running golangci-lint
-	$(GO) vet ./...
-	$(GOBIN)/golangci-lint run ./...
-endif
+	@if [ -n "$(HAS_SERVER)" ]; then \
+		echo "Running golangci-lint"; \
+		$(GO) vet ./...; \
+		$(GOBIN)/golangci-lint run ./...; \
+	fi
 
 ## Builds the server, if it exists, for all supported architectures, unless MM_SERVICESETTINGS_ENABLEDEVELOPER is set.
 .PHONY: server
@@ -403,8 +399,7 @@ logs-watch:
 help:
 	@cat Makefile build/*.mk | grep -v '\.PHONY' |  grep -v '\help:' | grep -B1 -E '^[a-zA-Z0-9_.-]+:.*' | sed -e "s/:.*//" | sed -e "s/^## //" |  grep -v '\-\-' | sed '1!G;h;$$!d' | awk 'NR%2{printf "\033[36m%-30s\033[0m",$$0;next;}1' | sort
 
-mock:
-ifneq ($(HAS_SERVER),)
-	go install github.com/golang/mock/mockgen@v1.6.0
-	mockgen -destination=server/command/mocks/mock_commands.go -package=mocks github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/command Command
-endif
+.PHONY: mocks
+mocks:
+	$(GO) install github.com/golang/mock/mockgen@v1.6.0
+	$(GO) generate ./...

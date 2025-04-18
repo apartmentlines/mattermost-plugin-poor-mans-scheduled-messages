@@ -7,29 +7,41 @@ import (
 	"strings"
 	"time"
 
-	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/channel"
-	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/clock"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/formatter"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/scheduler"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/pluginapi"
 )
 
 type Handler struct {
-	client          *pluginapi.Client
+	logger          ports.Logger
+	slasher         ports.SlashCommandService
+	user            ports.UserService
 	store           store.Store
 	scheduler       *scheduler.Scheduler
-	channel         *channel.Channel
+	channel         ports.ChannelService
 	maxUserMessages int
-	clock           clock.Clock
+	clock           ports.Clock
 	helpText        string
 }
 
-func NewHandler(client *pluginapi.Client, store store.Store, sched *scheduler.Scheduler, channel *channel.Channel, maxUserMessages int, clk clock.Clock, helpText string) *Handler {
+func NewHandler(
+	logger ports.Logger,
+	slasher ports.SlashCommandService,
+	user ports.UserService,
+	store store.Store,
+	sched *scheduler.Scheduler,
+	channel ports.ChannelService,
+	maxUserMessages int,
+	clk ports.Clock,
+	helpText string,
+) *Handler {
 	return &Handler{
-		client:          client,
+		logger:          logger,
+		slasher:         slasher,
+		user:            user,
 		store:           store,
 		scheduler:       sched,
 		channel:         channel,
@@ -40,9 +52,9 @@ func NewHandler(client *pluginapi.Client, store store.Store, sched *scheduler.Sc
 }
 
 func (h *Handler) Register() error {
-	err := h.client.SlashCommand.Register(h.scheduleDefinition())
+	err := h.slasher.Register(h.scheduleDefinition())
 	if err != nil {
-		h.client.Log.Error("Failed to register command", "error", err)
+		h.logger.Error("Failed to register command", "error", err)
 		return err
 	}
 	return nil
@@ -62,11 +74,11 @@ func (h *Handler) Execute(args *model.CommandArgs) (*model.CommandResponse, *mod
 }
 
 func (h *Handler) BuildEphemeralList(args *model.CommandArgs) *model.CommandResponse {
-	h.client.Log.Debug("Building scheduled messages list", "user_id", args.UserId)
+	h.logger.Debug("Building scheduled messages list", "user_id", args.UserId)
 	ids, err := h.store.ListUserMessageIDs(args.UserId)
 	if err != nil {
 		message := fmt.Sprintf("❌ Error retrieving message list:  %v", err)
-		h.client.Log.Error(message, "user_id", args.UserId)
+		h.logger.Error(message, "user_id", args.UserId)
 		return &model.CommandResponse{
 			ResponseType: model.CommandResponseTypeEphemeral,
 			Text:         message,
@@ -79,17 +91,17 @@ func (h *Handler) BuildEphemeralList(args *model.CommandArgs) *model.CommandResp
 			Text:         "You have no scheduled messages.",
 		}
 	}
-	h.client.Log.Debug(fmt.Sprintf("Found %v scheduled message(s) in user index", idsLength), "user_id", args.UserId)
+	h.logger.Debug(fmt.Sprintf("Found %v scheduled message(s) in user index", idsLength), "user_id", args.UserId)
 
 	var msgs []*types.ScheduledMessage
-	channels := make(map[string]*channel.Info)
+	channels := make(map[string]*ports.ChannelInfo)
 	for _, id := range ids {
 		msg, err := h.store.GetScheduledMessage(id)
 		if err == nil {
 			// We don't have atomic operations for saving/deleting a message, so if it can't be found
 			// clean up the user index as a failsafe.
 			if msg.ID == "" {
-				h.client.Log.Warn(fmt.Sprintf("Cleaning missing message %v from user index", id), "user_id", args.UserId)
+				h.logger.Warn(fmt.Sprintf("Cleaning missing message %v from user index", id), "user_id", args.UserId)
 				_ = h.store.CleanupMessageFromUserIndex(msg.UserID, id)
 			} else {
 				if _, exists := channels[msg.ChannelID]; !exists {
@@ -121,8 +133,8 @@ func (h *Handler) BuildEphemeralList(args *model.CommandArgs) *model.CommandResp
 }
 
 func (h *Handler) GetUserTimezone(userID string) string {
-	user, appErr := h.client.User.Get(userID)
-	if appErr != nil {
+	user, err := h.user.Get(userID)
+	if err != nil {
 		return "UTC"
 	}
 	automaticTimezone, aok := user.Timezone["automaticTimezone"]
@@ -143,7 +155,7 @@ func (h *Handler) UserDeleteMessage(userID string, msgID string) (*types.Schedul
 	}
 	if msg.UserID != userID {
 		message := fmt.Sprintf("user %s attempted to delete message %s owned by %s", userID, msgID, msg.UserID)
-		h.client.Log.Warn(message)
+		h.logger.Warn(message)
 		return nil, errors.New(message)
 	}
 	err = h.store.DeleteScheduledMessage(userID, msgID)
@@ -198,7 +210,7 @@ func (h *Handler) checkMaxUserMessages(userID string) error {
 }
 
 func (h *Handler) handleSchedule(args *model.CommandArgs, text string) *model.CommandResponse {
-	h.client.Log.Debug("Trying to schedule message", "user_id", args.UserId, "text", text)
+	h.logger.Debug("Trying to schedule message", "user_id", args.UserId, "text", text)
 	maxMessagesErr := h.checkMaxUserMessages(args.UserId)
 	if maxMessagesErr != nil {
 		return &model.CommandResponse{
@@ -247,14 +259,14 @@ func (h *Handler) handleSchedule(args *model.CommandArgs, text string) *model.Co
 
 	if saveErr != nil {
 		message := formatter.FormatScheduleError(schedTime, tz, channelInfo, saveErr)
-		h.client.Log.Error(message, "user_id", args.UserId)
+		h.logger.Error(message, "user_id", args.UserId)
 		return &model.CommandResponse{
 			ResponseType: model.CommandResponseTypeEphemeral,
 			Text:         message,
 		}
 	}
 	message := formatter.FormatScheduleSuccess(schedTime, tz, channelInfo)
-	h.client.Log.Info(message, "user_id", args.UserId)
+	h.logger.Info(message, "user_id", args.UserId)
 	return &model.CommandResponse{
 		ResponseType: model.CommandResponseTypeEphemeral,
 		Text:         message,

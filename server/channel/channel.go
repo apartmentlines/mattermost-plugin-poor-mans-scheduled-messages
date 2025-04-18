@@ -4,34 +4,38 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/pluginapi"
 )
 
 type Channel struct {
-	api *pluginapi.Client
+	logger     ports.Logger
+	channelAPI ports.ChannelDataService
+	teamAPI    ports.TeamService
+	userAPI    ports.UserService
 }
 
-func New(api *pluginapi.Client) *Channel {
+func New(
+	logger ports.Logger,
+	channelAPI ports.ChannelDataService,
+	teamAPI ports.TeamService,
+	userAPI ports.UserService,
+) *Channel {
 	return &Channel{
-		api: api,
+		logger:     logger,
+		channelAPI: channelAPI,
+		teamAPI:    teamAPI,
+		userAPI:    userAPI,
 	}
 }
 
-type Info struct {
-	ChannelID   string
-	ChannelType model.ChannelType
-	ChannelLink string
-	TeamName    string
-}
-
-func (c *Channel) GetInfo(channelID string) (*Info, error) {
-	channel, channelGetErr := c.api.Channel.Get(channelID)
+func (c *Channel) GetInfo(channelID string) (*ports.ChannelInfo, error) {
+	channel, channelGetErr := c.channelAPI.Get(channelID)
 	if channelGetErr != nil {
 		return nil, fmt.Errorf("failed to get channel %s: %w", channelID, channelGetErr)
 	}
 	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
-		members, listMembersErr := c.api.Channel.ListMembers(channel.Id, 0, 100)
+		members, listMembersErr := c.channelAPI.ListMembers(channel.Id, 0, 100)
 		if listMembersErr != nil {
 			return nil, fmt.Errorf("failed to get members of channel %s: %w", channel.Id, listMembersErr)
 		}
@@ -40,17 +44,17 @@ func (c *Channel) GetInfo(channelID string) (*Info, error) {
 			return nil, err
 		}
 		dmGroupName := strings.Join(usernames, ", ")
-		return &Info{
+		return &ports.ChannelInfo{
 			ChannelID:   channel.Id,
 			ChannelType: channel.Type,
 			ChannelLink: dmGroupName,
 		}, nil
 	}
-	team, teamGetErr := c.api.Team.Get(channel.TeamId)
+	team, teamGetErr := c.teamAPI.Get(channel.TeamId)
 	if teamGetErr != nil {
 		return nil, fmt.Errorf("failed to get team %s: %w", channel.TeamId, teamGetErr)
 	}
-	return &Info{
+	return &ports.ChannelInfo{
 		ChannelID:   channel.Id,
 		ChannelType: channel.Type,
 		ChannelLink: fmt.Sprintf("~%s", channel.Name),
@@ -58,22 +62,22 @@ func (c *Channel) GetInfo(channelID string) (*Info, error) {
 	}, nil
 }
 
-func (c *Channel) UnknownChannel() *Info {
-	return &Info{
+func (c *Channel) UnknownChannel() *ports.ChannelInfo {
+	return &ports.ChannelInfo{
 		ChannelLink: "N/A",
 	}
 }
 
-func (c *Channel) GetInfoOrUnknown(channelID string) *Info {
+func (c *Channel) GetInfoOrUnknown(channelID string) *ports.ChannelInfo {
 	channelInfo, getChannelErr := c.GetInfo(channelID)
 	if getChannelErr == nil {
 		return channelInfo
 	}
-	c.api.Log.Error("Failed to get channel info", "channel_id", channelID, "error", getChannelErr)
+	c.logger.Error("Failed to get channel info", "channel_id", channelID, "error", getChannelErr)
 	return c.UnknownChannel()
 }
 
-func (c *Channel) MakeChannelLink(channelInfo *Info) string {
+func (c *Channel) MakeChannelLink(channelInfo *ports.ChannelInfo) string {
 	if channelInfo.ChannelID == "" {
 		return channelInfo.ChannelLink
 	}
@@ -86,7 +90,7 @@ func (c *Channel) MakeChannelLink(channelInfo *Info) string {
 func (c *Channel) mapMembersToUsernames(members []*model.ChannelMember) ([]string, error) {
 	var usernames []string
 	for _, member := range members {
-		user, err := c.api.User.Get(member.UserId)
+		user, err := c.userAPI.Get(member.UserId)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get user %s: %w", member.UserId, err)
 		}

@@ -82,3 +82,86 @@ To trigger a release, follow these steps:
     make major-rc
     ```
    This will release a major release candidate.
+
+### Unit‑testing, mocks and fakes
+
+We use two strategies for test doubles:
+
+* **Hand‑written fakes** – for very small, deterministic collaborators  
+  (e.g. Clock, IDGenerator). These live directly in the `_test.go` files.
+
+* **gomock‑generated mocks** – for any larger interface in
+  `internal/ports` (PostService, ChannelService, KVStore, …). Generated
+  mocks belong in `adapters/mock`.
+
+#### Generating mocks
+
+1. Install the generator once:
+
+       go install github.com/golang/mock/mockgen@latest
+
+2. Regenerate all mocks whenever an interface in `internal/ports`
+   changes:
+
+       make mocks           # preferred – wraps the individual commands
+       # or manually, e.g.
+       mockgen -source internal/ports/post.go \
+               -destination adapters/mock/post_mock.go \
+               -package mock
+
+3. Commit the regenerated `*_mock.go` files so CI and other developers
+   don’t need `mockgen` installed.
+
+Guideline: if an interface has more than two trivial methods, prefer a
+gomock‑generated mock; otherwise write a hand fake.
+
+### Architecture – Ports & Adapters
+
+The codebase follows a clean “ports and adapters” pattern to isolate all
+Mattermost‑API calls behind narrow interfaces declared in
+`internal/ports`.
+
+          ┌────────────────────┐
+          │   Mattermost API   │←── adapters/mm (production)
+          └─────────▲──────────┘
+                    │implements
+          ┌─────────┴──────────┐
+          │       ports        │←── internal/ports
+          └─────────▲──────────┘
+                    │imported by
+          ┌─────────┴──────────┐
+          │ Application code   │ (scheduler, command, store, channel, …)
+          └─────────┬──────────┘
+                    │mocked by
+          ┌─────────▼──────────┐
+          │  test adapters     │←── adapters/mock + hand fakes
+          └────────────────────┘
+
+Why  
+• Single, central list of external capabilities.  
+• Application packages depend only on small, purpose‑built interfaces.  
+• Production wiring lives in one place (`plugin.go`).  
+• Unit tests swap in gomock mocks or hand fakes with zero Mattermost
+  dependencies.
+
+#### Adding a new capability
+
+1. Edit `internal/ports/ports.go` and extend the appropriate interface
+   or add a new one.
+
+2. Regenerate mocks:
+
+       make mocks        # or run mockgen manually (see above)
+
+3. Implement the method in the production adapter  
+   (usually this means adding a thin wrapper method to the relevant
+   `pluginapi.*Service` value in `plugin.go`).
+
+4. Inject the new port into any package that needs it via constructor
+   parameters.
+
+5. Update tests to set expectations on the new gomock mock or adjust
+   hand fakes.
+
+Follow these steps and the application will remain decoupled,
+test‑friendly, and easy to evolve.

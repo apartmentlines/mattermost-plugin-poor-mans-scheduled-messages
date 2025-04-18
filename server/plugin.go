@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/channel"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/clock"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/command"
@@ -31,6 +32,8 @@ type Plugin struct {
 	Command         *command.Handler
 	maxUserMessages int
 	helpText        string
+	logger          ports.Logger
+	poster          ports.PostService
 }
 
 func (p *Plugin) loadHelpText() error {
@@ -53,7 +56,7 @@ func (p *Plugin) OnActivate() error {
 		p.API.LogError("Plugin activation failed: could not load help text.", "error", helpErr.Error())
 		return helpErr
 	}
-	botID, botErr := EnsureBot(p.client)
+	botID, botErr := EnsureBot(&p.client.Bot)
 	if botErr != nil {
 		p.API.LogError("Plugin activation failed: could not ensure bot.", "error", botErr.Error())
 		return botErr
@@ -74,13 +77,45 @@ func (p *Plugin) OnDeactivate() error {
 func (p *Plugin) initialize(botID string) error {
 	p.BotID = botID
 	p.maxUserMessages = 1000
-	p.Channel = channel.New(p.client)
-	kvStore := store.NewKVStore(p.client, p.maxUserMessages)
 	realClk := clock.NewReal()
-	sched := scheduler.New(&p.client.Post, &p.client.Log, kvStore, p.Channel, p.BotID, realClk)
-	p.Scheduler = sched
+	p.logger = &p.client.Log
+	p.poster = &p.client.Post
+
+	p.Channel = channel.New(
+		p.logger,
+		&p.client.Channel,
+		&p.client.Team,
+		&p.client.User,
+	)
+
+	kvStore := store.NewKVStore(
+		&p.client.Log,
+		&p.client.KV,
+		p.maxUserMessages,
+	)
 	p.Store = kvStore
-	p.Command = command.NewHandler(p.client, kvStore, sched, p.Channel, p.maxUserMessages, realClk, p.helpText)
+
+	sched := scheduler.New(
+		&p.client.Log,
+		&p.client.Post,
+		kvStore,
+		p.Channel,
+		p.BotID,
+		realClk,
+	)
+	p.Scheduler = sched
+
+	p.Command = command.NewHandler(
+		&p.client.Log,
+		&p.client.SlashCommand,
+		&p.client.User,
+		kvStore,
+		sched,
+		p.Channel,
+		p.maxUserMessages,
+		realClk,
+		p.helpText,
+	)
 	if err := p.Command.Register(); err != nil {
 		return err
 	}

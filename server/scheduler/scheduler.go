@@ -5,44 +5,33 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/channel"
-	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/clock"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/formatter"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/mattermost/mattermost/server/public/model"
 )
 
-type ChannelLinker interface {
-	GetInfoOrUnknown(channelID string) *channel.Info
-	MakeChannelLink(info *channel.Info) string
-}
-
-type Poster interface {
-	CreatePost(post *model.Post) error
-	DM(botID, userID string, post *model.Post) error
-}
-
 type tickerFactory func(d time.Duration) *time.Ticker
 
 type Scheduler struct {
-	poster    Poster
-	logger    types.Logger
+	logger    ports.Logger
+	poster    ports.PostService
 	store     store.Store
-	linker    ChannelLinker
+	linker    ports.ChannelService
 	botID     string
-	clock     clock.Clock
+	clock     ports.Clock
 	ctx       context.Context
 	cancel    context.CancelFunc
 	mu        sync.Mutex
 	newTicker tickerFactory
 }
 
-func New(poster Poster, logger types.Logger, store store.Store, linker ChannelLinker, botID string, clk clock.Clock) *Scheduler {
+func New(logger ports.Logger, poster ports.PostService, store store.Store, linker ports.ChannelService, botID string, clk ports.Clock) *Scheduler {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Scheduler{
-		poster:    poster,
 		logger:    logger,
+		poster:    poster,
 		store:     store,
 		linker:    linker,
 		botID:     botID,

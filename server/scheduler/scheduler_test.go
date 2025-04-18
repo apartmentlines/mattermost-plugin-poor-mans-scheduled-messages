@@ -6,8 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/channel"
-	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/clock"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -19,8 +18,8 @@ func (f fakeClock) Now() time.Time { return f.now }
 
 type stubLinker struct{}
 
-func (stubLinker) GetInfoOrUnknown(string) *channel.Info { return &channel.Info{} }
-func (stubLinker) MakeChannelLink(*channel.Info) string  { return "stub link" }
+func (stubLinker) GetInfoOrUnknown(string) *ports.ChannelInfo { return &ports.ChannelInfo{} }
+func (stubLinker) MakeChannelLink(*ports.ChannelInfo) string  { return "stub link" }
 
 type fakePoster struct {
 	createCalled int32
@@ -38,6 +37,9 @@ func (p *fakePoster) DM(_, _ string, _ *model.Post) error {
 	p.dmCalled++
 	return p.dmErr
 }
+
+func (p *fakePoster) UpdateEphemeralPost(string, *model.Post) {}
+func (p *fakePoster) SendEphemeralPost(string, *model.Post)   {}
 
 type fakeLogger struct{}
 
@@ -77,9 +79,8 @@ func (fs *fakeStore) ListAllScheduledIDs() (map[string]int64, error) { return fs
 func (fs *fakeStore) ListUserMessageIDs(string) ([]string, error)    { return nil, nil }
 func (fs *fakeStore) GenerateMessageID() string                      { return "gen" }
 
-func newScheduler(st store.Store, poster *fakePoster, clk clock.Clock) *Scheduler {
-	linker := stubLinker{}
-	return New(poster, fakeLogger{}, st, linker, "bot", clk)
+func newScheduler(st store.Store, poster *fakePoster, clk ports.Clock) *Scheduler {
+	return New(fakeLogger{}, poster, st, &stubLinker{}, "bot", clk)
 }
 
 func TestProcessDueMessages_PostSuccess(t *testing.T) {
