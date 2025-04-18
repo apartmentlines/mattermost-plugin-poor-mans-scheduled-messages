@@ -6,7 +6,9 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/adapters/mm"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/bot"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/channel"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/clock"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/command"
@@ -56,7 +58,7 @@ func (p *Plugin) OnActivate() error {
 		p.API.LogError("Plugin activation failed: could not load help text.", "error", helpErr.Error())
 		return helpErr
 	}
-	botID, botErr := EnsureBot(&p.client.Bot)
+	botID, botErr := bot.EnsureBot(&p.client.Bot, mm.BotProfileImageServiceWrapper{})
 	if botErr != nil {
 		p.API.LogError("Plugin activation failed: could not ensure bot.", "error", botErr.Error())
 		return botErr

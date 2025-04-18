@@ -61,3 +61,7 @@ type KVService interface {
 type BotService interface {
 	EnsureBot(bot *model.Bot, profileImagePath ...pluginapi.EnsureBotOption) (string, error)
 }
+
+type BotProfileImageService interface {
+	ProfileImagePath(path string) pluginapi.EnsureBotOption
+}
