@@ -212,10 +212,10 @@ func TestGetInfo(t *testing.T) {
 
 		chData.EXPECT().Get(channelID).
 			Return(&model.Channel{
-				Id:      channelID,
-				Type:    model.ChannelTypeOpen,
-				Name:    "town-square",
-				TeamId:  teamID,
+				Id:     channelID,
+				Type:   model.ChannelTypeOpen,
+				Name:   "town-square",
+				TeamId: teamID,
 			}, nil).
 			Times(1)
 
