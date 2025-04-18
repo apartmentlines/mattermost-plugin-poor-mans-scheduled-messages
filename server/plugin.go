@@ -20,6 +20,37 @@ import (
 	"github.com/mattermost/mattermost/server/public/pluginapi"
 )
 
+type ClientFactory func(api plugin.API, drv plugin.Driver) *pluginapi.Client
+
+type ClockFactory func() ports.Clock
+
+type BotEnsurer func(ports.BotService, ports.BotProfileImageService) (string, error)
+
+type AppBuilder interface {
+	NewChannel(cli *pluginapi.Client) *channel.Channel
+	NewStore(cli *pluginapi.Client, maxUserMessages int) store.Store
+	NewScheduler(cli *pluginapi.Client, st store.Store, ch *channel.Channel, botID string, clk ports.Clock) *scheduler.Scheduler
+	NewCommandHandler(cli *pluginapi.Client, st store.Store, sched *scheduler.Scheduler, ch *channel.Channel, maxUserMessages int, clk ports.Clock, help string) *command.Handler
+}
+
+type prodBuilder struct{}
+
+func (prodBuilder) NewChannel(cli *pluginapi.Client) *channel.Channel {
+	return channel.New(&cli.Log, &cli.Channel, &cli.Team, &cli.User)
+}
+
+func (prodBuilder) NewStore(cli *pluginapi.Client, maxUserMessages int) store.Store {
+	return store.NewKVStore(&cli.Log, &cli.KV, mm.ListMatchingService{}, maxUserMessages)
+}
+
+func (prodBuilder) NewScheduler(cli *pluginapi.Client, st store.Store, ch *channel.Channel, botID string, clk ports.Clock) *scheduler.Scheduler {
+	return scheduler.New(&cli.Log, &cli.Post, st, ch, botID, clk)
+}
+
+func (prodBuilder) NewCommandHandler(cli *pluginapi.Client, st store.Store, sched *scheduler.Scheduler, ch *channel.Channel, maxUserMessages int, clk ports.Clock, help string) *command.Handler {
+	return command.NewHandler(&cli.Log, &cli.SlashCommand, &cli.User, st, sched, ch, maxUserMessages, clk, help)
+}
+
 type Plugin struct {
 	plugin.MattermostPlugin
 	// configurationLock synchronizes access to the configuration.
@@ -39,32 +70,51 @@ type Plugin struct {
 	poster                 ports.PostService
 }
 
-func (p *Plugin) loadHelpText() error {
+func (p *Plugin) loadHelpText(text string) (string, error) {
+	if text != "" {
+		return text, nil
+	}
 	bundlePath, err := p.API.GetBundlePath()
 	if err != nil {
-		return fmt.Errorf("failed to get bundle path: %w", err)
+		return "", fmt.Errorf("failed to get bundle path: %w", err)
 	}
 	helpFilePath := filepath.Join(bundlePath, "assets", "help.md")
 	helpBytes, err := os.ReadFile(helpFilePath)
 	if err != nil {
-		return fmt.Errorf("failed to read help file %s: %w", helpFilePath, err)
+		return "", fmt.Errorf("failed to read help file %s: %w", helpFilePath, err)
 	}
-	p.helpText = string(helpBytes)
-	return nil
+	return string(helpBytes), nil
 }
 
 func (p *Plugin) OnActivate() error {
-	p.client = pluginapi.NewClient(p.API, p.Driver)
-	if helpErr := p.loadHelpText(); helpErr != nil {
+	return p.OnActivateWith(pluginapi.NewClient, clock.NewReal, nil, bot.EnsureBot, "")
+}
+
+func (p *Plugin) OnActivateWith(
+	clientFactory ClientFactory,
+	clockFactory ClockFactory,
+	builder AppBuilder,
+	ensureBot BotEnsurer,
+	help string,
+) error {
+	p.client = clientFactory(p.API, p.Driver)
+	var helpText string
+	var helpErr error
+	if helpText, helpErr = p.loadHelpText(help); helpErr != nil {
 		p.API.LogError("Plugin activation failed: could not load help text.", "error", helpErr.Error())
 		return helpErr
 	}
-	botID, botErr := bot.EnsureBot(&p.client.Bot, mm.BotProfileImageServiceWrapper{})
+	p.helpText = helpText
+	botID, botErr := ensureBot(&p.client.Bot, mm.BotProfileImageServiceWrapper{})
 	if botErr != nil {
 		p.API.LogError("Plugin activation failed: could not ensure bot.", "error", botErr.Error())
 		return botErr
 	}
-	if initErr := p.initialize(botID); initErr != nil {
+	if builder == nil {
+		builder = prodBuilder{}
+	}
+	clk := clockFactory()
+	if initErr := p.initialize(botID, clk, builder); initErr != nil {
 		p.API.LogError("Plugin activation failed: could not initialize dependencies.", "error", initErr.Error())
 		return initErr
 	}
@@ -77,49 +127,16 @@ func (p *Plugin) OnDeactivate() error {
 	return nil
 }
 
-func (p *Plugin) initialize(botID string) error {
+func (p *Plugin) initialize(botID string, clk ports.Clock, builder AppBuilder) error {
 	p.BotID = botID
 	p.defaultMaxUserMessages = constants.MaxUserMessages
-	realClk := clock.NewReal()
 	p.logger = &p.client.Log
 	p.poster = &p.client.Post
 
-	p.Channel = channel.New(
-		p.logger,
-		&p.client.Channel,
-		&p.client.Team,
-		&p.client.User,
-	)
-
-	kvStore := store.NewKVStore(
-		&p.client.Log,
-		&p.client.KV,
-		mm.ListMatchingService{},
-		p.defaultMaxUserMessages,
-	)
-	p.Store = kvStore
-
-	sched := scheduler.New(
-		&p.client.Log,
-		&p.client.Post,
-		kvStore,
-		p.Channel,
-		p.BotID,
-		realClk,
-	)
-	p.Scheduler = sched
-
-	p.Command = command.NewHandler(
-		&p.client.Log,
-		&p.client.SlashCommand,
-		&p.client.User,
-		kvStore,
-		sched,
-		p.Channel,
-		p.defaultMaxUserMessages,
-		realClk,
-		p.helpText,
-	)
+	p.Channel = builder.NewChannel(p.client)
+	p.Store = builder.NewStore(p.client, p.defaultMaxUserMessages)
+	p.Scheduler = builder.NewScheduler(p.client, p.Store, p.Channel, p.BotID, clk)
+	p.Command = builder.NewCommandHandler(p.client, p.Store, p.Scheduler, p.Channel, p.defaultMaxUserMessages, clk, p.helpText)
 	if err := p.Command.Register(); err != nil {
 		return err
 	}
