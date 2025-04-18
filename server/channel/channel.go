@@ -34,25 +34,36 @@ func (c *Channel) GetInfo(channelID string) (*ports.ChannelInfo, error) {
 	if channelGetErr != nil {
 		return nil, fmt.Errorf("failed to get channel %s: %w", channelID, channelGetErr)
 	}
-	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
-		members, listMembersErr := c.channelAPI.ListMembers(channel.Id, 0, 100)
-		if listMembersErr != nil {
-			return nil, fmt.Errorf("failed to get members of channel %s: %w", channel.Id, listMembersErr)
-		}
-		usernames, err := c.mapMembersToUsernames(members)
-		if err != nil {
-			return nil, err
-		}
-		dmGroupName := strings.Join(usernames, ", ")
-		return &ports.ChannelInfo{
-			ChannelID:   channel.Id,
-			ChannelType: channel.Type,
-			ChannelLink: dmGroupName,
-		}, nil
+
+	switch channel.Type {
+	case model.ChannelTypeDirect, model.ChannelTypeGroup:
+		return c.getDirectOrGroupChannelInfo(channel)
+	default:
+		return c.getPublicOrPrivateChannelInfo(channel)
 	}
-	team, teamGetErr := c.teamAPI.Get(channel.TeamId)
-	if teamGetErr != nil {
-		return nil, fmt.Errorf("failed to get team %s: %w", channel.TeamId, teamGetErr)
+}
+
+func (c *Channel) getDirectOrGroupChannelInfo(channel *model.Channel) (*ports.ChannelInfo, error) {
+	members, listMembersErr := c.channelAPI.ListMembers(channel.Id, 0, 100)
+	if listMembersErr != nil {
+		return nil, fmt.Errorf("failed to get members of channel %s: %w", channel.Id, listMembersErr)
+	}
+	usernames, err := c.mapMembersToUsernames(members)
+	if err != nil {
+		return nil, err
+	}
+	dmGroupName := strings.Join(usernames, ", ")
+	return &ports.ChannelInfo{
+		ChannelID:   channel.Id,
+		ChannelType: channel.Type,
+		ChannelLink: dmGroupName,
+	}, nil
+}
+
+func (c *Channel) getPublicOrPrivateChannelInfo(channel *model.Channel) (*ports.ChannelInfo, error) {
+	team, err := c.teamAPI.Get(channel.TeamId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get team %s: %w", channel.TeamId, err)
 	}
 	return &ports.ChannelInfo{
 		ChannelID:   channel.Id,
