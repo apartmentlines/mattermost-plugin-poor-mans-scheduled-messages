@@ -12,6 +12,7 @@ import (
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/channel"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/clock"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/command"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/scheduler"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -25,17 +26,17 @@ type Plugin struct {
 	configurationLock sync.RWMutex
 	// configuration is the active plugin configuration. Consult getConfiguration and
 	// setConfiguration for usage.
-	configuration   *configuration
-	client          *pluginapi.Client
-	BotID           string
-	Scheduler       *scheduler.Scheduler
-	Store           store.Store
-	Channel         *channel.Channel
-	Command         *command.Handler
-	maxUserMessages int
-	helpText        string
-	logger          ports.Logger
-	poster          ports.PostService
+	configuration          *configuration
+	client                 *pluginapi.Client
+	BotID                  string
+	Scheduler              *scheduler.Scheduler
+	Store                  store.Store
+	Channel                *channel.Channel
+	Command                *command.Handler
+	defaultMaxUserMessages int
+	helpText               string
+	logger                 ports.Logger
+	poster                 ports.PostService
 }
 
 func (p *Plugin) loadHelpText() error {
@@ -78,7 +79,7 @@ func (p *Plugin) OnDeactivate() error {
 
 func (p *Plugin) initialize(botID string) error {
 	p.BotID = botID
-	p.maxUserMessages = 1000
+	p.defaultMaxUserMessages = constants.MaxUserMessages
 	realClk := clock.NewReal()
 	p.logger = &p.client.Log
 	p.poster = &p.client.Post
@@ -93,7 +94,8 @@ func (p *Plugin) initialize(botID string) error {
 	kvStore := store.NewKVStore(
 		&p.client.Log,
 		&p.client.KV,
-		p.maxUserMessages,
+		mm.ListMatchingService{},
+		p.defaultMaxUserMessages,
 	)
 	p.Store = kvStore
 
@@ -114,7 +116,7 @@ func (p *Plugin) initialize(botID string) error {
 		kvStore,
 		sched,
 		p.Channel,
-		p.maxUserMessages,
+		p.defaultMaxUserMessages,
 		realClk,
 		p.helpText,
 	)

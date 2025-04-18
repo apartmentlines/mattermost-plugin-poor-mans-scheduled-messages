@@ -65,3 +65,7 @@ type BotService interface {
 type BotProfileImageService interface {
 	ProfileImagePath(path string) pluginapi.EnsureBotOption
 }
+
+type ListMatchingService interface {
+	WithPrefix(prefix string) pluginapi.ListKeysOption
+}

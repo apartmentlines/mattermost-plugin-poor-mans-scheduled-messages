@@ -5,9 +5,9 @@ import (
 	"slices"
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/google/uuid"
-	"github.com/mattermost/mattermost/server/public/pluginapi"
 )
 
 type Store interface {
@@ -21,13 +21,14 @@ type Store interface {
 }
 
 type kvStore struct {
-	logger          ports.Logger
-	kv              ports.KVService
-	maxUserMessages int
+	logger              ports.Logger
+	kv                  ports.KVService
+	listMatchingService ports.ListMatchingService
+	maxUserMessages     int
 }
 
-func NewKVStore(logger ports.Logger, kv ports.KVService, maxUserMessages int) Store {
-	return &kvStore{logger: logger, kv: kv, maxUserMessages: maxUserMessages}
+func NewKVStore(logger ports.Logger, kv ports.KVService, listMatchingService ports.ListMatchingService, maxUserMessages int) Store {
+	return &kvStore{logger: logger, kv: kv, listMatchingService: listMatchingService, maxUserMessages: maxUserMessages}
 }
 
 func (s *kvStore) SaveScheduledMessage(userID string, msg *types.ScheduledMessage) error {
@@ -74,7 +75,7 @@ func (s *kvStore) GetScheduledMessage(msgID string) (*types.ScheduledMessage, er
 
 func (s *kvStore) ListAllScheduledIDs() (map[string]int64, error) {
 	results := make(map[string]int64)
-	keys, err := s.kv.ListKeys(0, s.maxUserMessages, pluginapi.WithPrefix("schedmsg:"))
+	keys, err := s.kv.ListKeys(0, s.maxUserMessages, s.listMatchingService.WithPrefix("schedmsg:"))
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +104,7 @@ func (s *kvStore) GenerateMessageID() string {
 }
 
 func (s *kvStore) removeUserMessageFromIndex(userID, msgID string) (bool, error) {
-	return s.updateUserIndex(userID, func(ids []string) ([]string, bool) {
+	return s.modifyUserIndex(userID, func(ids []string) ([]string, bool) {
 		idx := slices.Index(ids, msgID)
 		if idx == -1 {
 			return ids, false
@@ -113,7 +114,7 @@ func (s *kvStore) removeUserMessageFromIndex(userID, msgID string) (bool, error)
 }
 
 func (s *kvStore) addUserMessageToIndex(userID, msgID string) (bool, error) {
-	return s.updateUserIndex(userID, func(ids []string) ([]string, bool) {
+	return s.modifyUserIndex(userID, func(ids []string) ([]string, bool) {
 		if slices.Contains(ids, msgID) {
 			return ids, false
 		}
@@ -131,7 +132,7 @@ func (s *kvStore) deleteScheduledMessageByID(msgID string) error {
 	return s.kv.Delete(key)
 }
 
-func (s *kvStore) updateUserIndex(
+func (s *kvStore) modifyUserIndex(
 	userID string,
 	fn func([]string) ([]string, bool),
 ) (bool, error) {
@@ -148,9 +149,9 @@ func (s *kvStore) updateUserIndex(
 }
 
 func schedKey(id string) string {
-	return fmt.Sprintf("schedmsg:%s", id)
+	return fmt.Sprintf("%s%s", constants.SchedPrefix, id)
 }
 
 func indexKey(userID string) string {
-	return fmt.Sprintf("user_sched_index:%s", userID)
+	return fmt.Sprintf("%s%s", constants.UserIndexPrefix, userID)
 }
