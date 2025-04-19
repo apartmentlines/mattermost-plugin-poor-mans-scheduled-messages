@@ -115,8 +115,9 @@ func TestMattermostAuthorizationRequired_Authorized(t *testing.T) {
 }
 
 func TestParseDeleteRequest_MalformedJSON(t *testing.T) {
+	p := &Plugin{logger: &testutil.FakeLogger{}}
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{invalid json"))
-	_, _, err := parseDeleteRequest(r)
+	_, _, err := parseDeleteRequest(p, r)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid request body")
 }
@@ -133,10 +134,11 @@ func TestParseDeleteRequest_MissingContextFields(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			p := &Plugin{logger: &testutil.FakeLogger{}}
 			reqBody := model.PostActionIntegrationRequest{Context: tc.context}
 			b, _ := json.Marshal(reqBody)
 			r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(b))
-			_, _, err := parseDeleteRequest(r)
+			_, _, err := parseDeleteRequest(p, r)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "invalid delete request context")
 		})
@@ -144,15 +146,17 @@ func TestParseDeleteRequest_MissingContextFields(t *testing.T) {
 }
 
 func TestParseDeleteRequest_WrongAction(t *testing.T) {
+	p := &Plugin{logger: &testutil.FakeLogger{}}
 	reqBody := model.PostActionIntegrationRequest{Context: map[string]any{"action": "not-delete", "id": "msg123"}}
 	b, _ := json.Marshal(reqBody)
 	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(b))
-	_, _, err := parseDeleteRequest(r)
+	_, _, err := parseDeleteRequest(p, r)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid delete request context")
 }
 
 func TestParseDeleteRequest_Valid(t *testing.T) {
+	p := &Plugin{logger: &testutil.FakeLogger{}}
 	reqBody := model.PostActionIntegrationRequest{
 		PostId:    "post1",
 		ChannelId: "chan1",
@@ -160,7 +164,7 @@ func TestParseDeleteRequest_Valid(t *testing.T) {
 	}
 	b, _ := json.Marshal(reqBody)
 	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(b))
-	req, msgID, err := parseDeleteRequest(r)
+	req, msgID, err := parseDeleteRequest(p, r)
 	require.NoError(t, err)
 	assert.Equal(t, "post1", req.PostId)
 	assert.Equal(t, "chan1", req.ChannelId)

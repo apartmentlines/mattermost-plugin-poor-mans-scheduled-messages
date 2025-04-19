@@ -18,8 +18,11 @@ import (
 
 func pluginTestAPI() *plugintest.API {
 	api := &plugintest.API{}
-	api.On("LogInfo", mock.Anything, mock.Anything).Maybe()
-	api.On("LogError", mock.Anything, mock.Anything, mock.Anything).Maybe()
+	api.On("LogDebug", mock.Anything).Maybe()
+	api.On("LogInfo", mock.Anything).Maybe()
+	api.On("LogWarn", mock.Anything).Maybe()
+	api.On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
+	api.On("LogError", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
 	return api
 }
 

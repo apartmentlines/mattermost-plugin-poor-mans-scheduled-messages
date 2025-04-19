@@ -71,22 +71,31 @@ type Plugin struct {
 }
 
 func (p *Plugin) loadHelpText(text string) (string, error) {
+	p.API.LogDebug("Attempting to load help text")
 	if text != "" {
+		p.API.LogDebug("Using provided help text argument")
 		return text, nil
 	}
+	p.API.LogDebug("Help text argument empty, attempting to load from file")
 	bundlePath, err := p.API.GetBundlePath()
 	if err != nil {
+		p.API.LogError("Failed to get bundle path for help text", "error", err)
 		return "", fmt.Errorf("failed to get bundle path: %w", err)
 	}
 	helpFilePath := filepath.Join(bundlePath, constants.AssetsDir, constants.HelpFilename)
+	p.API.LogDebug("Reading help file", "path", helpFilePath)
 	helpBytes, err := os.ReadFile(helpFilePath)
 	if err != nil {
+		p.API.LogError("Failed to read help file", "path", helpFilePath, "error", err)
 		return "", fmt.Errorf("failed to read help file %s: %w", helpFilePath, err)
 	}
-	return string(helpBytes), nil
+	loadedText := string(helpBytes)
+	p.API.LogDebug("Successfully loaded help text from file", "path", helpFilePath, "length", len(loadedText))
+	return loadedText, nil
 }
 
 func (p *Plugin) OnActivate() error {
+	p.API.LogDebug("OnActivate called, invoking OnActivateWith defaults")
 	return p.OnActivateWith(pluginapi.NewClient, clock.NewReal, nil, bot.EnsureBot, "")
 }
 
@@ -97,7 +106,10 @@ func (p *Plugin) OnActivateWith(
 	ensureBot BotEnsurer,
 	help string,
 ) error {
+	p.API.LogDebug("OnActivateWith called")
 	p.client = clientFactory(p.API, p.Driver)
+	p.API.LogDebug("Client created")
+
 	var helpText string
 	var helpErr error
 	if helpText, helpErr = p.loadHelpText(help); helpErr != nil {
@@ -105,45 +117,87 @@ func (p *Plugin) OnActivateWith(
 		return helpErr
 	}
 	p.helpText = helpText
+	p.API.LogDebug("Help text loaded")
+
+	p.API.LogDebug("Ensuring bot account exists")
 	botID, botErr := ensureBot(&p.client.Bot, mm.BotProfileImageServiceWrapper{})
 	if botErr != nil {
 		p.API.LogError("Plugin activation failed: could not ensure bot.", "error", botErr.Error())
 		return botErr
 	}
+	p.API.LogDebug("Bot account ensured", "bot_id", botID)
+
 	if builder == nil {
+		p.API.LogDebug("Using production builder")
 		builder = prodBuilder{}
+	} else {
+		p.API.LogDebug("Using provided builder (likely for testing)")
 	}
+
 	clk := clockFactory()
+	p.API.LogDebug("Clock created")
+
+	p.API.LogDebug("Initializing plugin components", "bot_id", botID)
 	if initErr := p.initialize(botID, clk, builder); initErr != nil {
 		p.API.LogError("Plugin activation failed: could not initialize dependencies.", "error", initErr.Error())
 		return initErr
 	}
-	p.API.LogInfo("Scheduled Messages plugin activated.")
+	p.API.LogDebug("Plugin components initialized")
+
+	p.API.LogInfo("Scheduled Messages plugin activated successfully.")
 	return nil
 }
 
 func (p *Plugin) OnDeactivate() error {
-	p.Scheduler.Stop()
+	p.API.LogInfo("Deactivating Scheduled Messages plugin")
+	if p.Scheduler != nil {
+		p.API.LogDebug("Stopping scheduler")
+		p.Scheduler.Stop()
+		p.API.LogDebug("Scheduler stopped")
+	} else {
+		p.API.LogWarn("Scheduler was nil during deactivation")
+	}
+	p.API.LogInfo("Scheduled Messages plugin deactivated.")
 	return nil
 }
 
 func (p *Plugin) initialize(botID string, clk ports.Clock, builder AppBuilder) error {
+	p.API.LogDebug("Initializing plugin components", "bot_id", botID)
 	p.BotID = botID
 	p.defaultMaxUserMessages = constants.MaxUserMessages
 	p.logger = &p.client.Log
 	p.poster = &p.client.Post
 
+	p.logger.Debug("Initializing Channel service")
 	p.Channel = builder.NewChannel(p.client)
+	p.logger.Debug("Initializing Store service", "max_user_messages", p.defaultMaxUserMessages)
 	p.Store = builder.NewStore(p.client, p.defaultMaxUserMessages)
+	p.logger.Debug("Initializing Scheduler service", "bot_id", p.BotID)
 	p.Scheduler = builder.NewScheduler(p.client, p.Store, p.Channel, p.BotID, clk)
+	p.logger.Debug("Initializing Command handler", "max_user_messages", p.defaultMaxUserMessages)
 	p.Command = builder.NewCommandHandler(p.client, p.Store, p.Scheduler, p.Channel, p.defaultMaxUserMessages, clk, p.helpText)
+
+	p.logger.Debug("Registering command handler")
 	if err := p.Command.Register(); err != nil {
+		p.logger.Error("Failed to register command handler", "error", err)
 		return err
 	}
+	p.logger.Debug("Command handler registered successfully")
+
+	p.logger.Info("Starting scheduler goroutine")
 	go p.Scheduler.Start()
+
+	p.logger.Debug("Plugin initialization complete")
 	return nil
 }
 
 func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	return p.Command.Execute(args)
+	p.logger.Debug("ExecuteCommand hook triggered", "user_id", args.UserId, "channel_id", args.ChannelId, "command", args.Command)
+	resp, appErr := p.Command.Execute(args)
+	if appErr != nil {
+		p.logger.Error("Command execution failed", "user_id", args.UserId, "command", args.Command, "error", appErr)
+	} else {
+		p.logger.Debug("Command execution successful", "user_id", args.UserId, "command", args.Command)
+	}
+	return resp, appErr
 }

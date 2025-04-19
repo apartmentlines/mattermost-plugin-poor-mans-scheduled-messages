@@ -452,7 +452,7 @@ func TestListUserMessageIDs_GetError(t *testing.T) {
 }
 
 func TestGenerateMessageID_Unique(t *testing.T) {
-	store := &kvStore{}
+	store := NewKVStore(testutil.FakeLogger{}, nil, nil, 0)
 	id1 := store.GenerateMessageID()
 	id2 := store.GenerateMessageID()
 	if id1 == "" || id2 == "" || id1 == id2 {
