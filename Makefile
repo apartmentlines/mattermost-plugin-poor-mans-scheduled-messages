@@ -1,4 +1,5 @@
 GO ?= $(shell command -v go 2> /dev/null)
+GOIMPORTS ?= $(shell command -v goimports 2> /dev/null)
 NPM ?= $(shell command -v npm 2> /dev/null)
 CURL ?= $(shell command -v curl 2> /dev/null)
 MM_DEBUG ?=
@@ -403,3 +404,8 @@ help:
 mocks:
 	$(GO) install github.com/golang/mock/mockgen@v1.6.0
 	$(GO) generate ./...
+
+.PHONY: format
+format:
+	$(GO) fmt ./...
+	$(GOIMPORTS) -local github.com/apartmentlines/mattermost-poor-mans-scheduled-messages -w .
