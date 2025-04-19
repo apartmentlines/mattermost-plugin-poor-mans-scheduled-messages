@@ -8,18 +8,17 @@ import (
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/formatter"
-	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/mattermost/mattermost/server/public/model"
 )
 
 type ListService struct {
 	logger  ports.Logger
-	store   store.Store
+	store   ports.Store
 	channel ports.ChannelService
 }
 
-func NewListService(logger ports.Logger, store store.Store, channel ports.ChannelService) *ListService {
+func NewListService(logger ports.Logger, store ports.Store, channel ports.ChannelService) *ListService {
 	logger.Debug("Creating new ListService")
 	return &ListService{
 		logger:  logger,
@@ -55,7 +54,7 @@ func (l *ListService) loadMessages(userID string) ([]*types.ScheduledMessage, er
 	}
 	l.logger.Debug("Found message IDs for user", "user_id", userID, "count", len(ids))
 
-	var msgs []*types.ScheduledMessage
+	msgs := []*types.ScheduledMessage{}
 	for _, id := range ids {
 		l.logger.Debug("Loading scheduled message details", "user_id", userID, "message_id", id)
 		msg, err := l.store.GetScheduledMessage(id)
@@ -64,7 +63,6 @@ func (l *ListService) loadMessages(userID string) ([]*types.ScheduledMessage, er
 			l.logger.Error("Failed to get scheduled message details", "user_id", userID, "message_id", id, "error", err)
 			continue
 		}
-		// This case handles potential inconsistencies where the index points to a non-existent message
 		if msg == nil || msg.ID == "" {
 			l.logger.Warn("Scheduled message referenced in user index not found, cleaning up", "user_id", userID, "message_id", id)
 			// Attempt cleanup, log if cleanup fails but continue processing
@@ -88,7 +86,7 @@ func (l *ListService) loadMessages(userID string) ([]*types.ScheduledMessage, er
 
 func (l *ListService) buildAttachments(msgs []*types.ScheduledMessage) []*model.SlackAttachment {
 	l.logger.Debug("Building attachments for scheduled messages", "count", len(msgs))
-	var attachments []*model.SlackAttachment
+	attachments := []*model.SlackAttachment{}
 	channelCache := make(map[string]*ports.ChannelInfo)
 
 	for _, m := range msgs {
