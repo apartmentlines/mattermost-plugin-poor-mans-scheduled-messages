@@ -122,11 +122,11 @@ func TestBuild_TimezoneLogic_DefaultUsed_NoSettings(t *testing.T) {
 	text := "at 3:00PM on 2024-01-16 message Hello UTC"
 	// 3 PM UTC on Jan 16
 	expectedPostAtUTC := time.Date(2024, 1, 16, 15, 0, 0, 0, time.UTC)
-	expectedPostAtLocal := expectedPostAtUTC // Displayed in UTC
+	expectedPostAtLocal := expectedPostAtUTC
 	channelInfo := &ports.ChannelInfo{ChannelID: testChannelID, ChannelLink: testChannelLink, TeamName: testTeamName, ChannelType: model.ChannelTypeOpen}
 
 	mocks.store.EXPECT().ListUserMessageIDs(testUserID).Return([]string{}, nil)
-	mocks.userAPI.EXPECT().Get(testUserID).Return(&model.User{Timezone: map[string]string{}}, nil) // Empty map
+	mocks.userAPI.EXPECT().Get(testUserID).Return(&model.User{Timezone: map[string]string{}}, nil)
 	mocks.store.EXPECT().GenerateMessageID().Return(testMsgID)
 	mocks.store.EXPECT().SaveScheduledMessage(testUserID, gomock.AssignableToTypeOf(&types.ScheduledMessage{})).
 		DoAndReturn(func(userID string, msg *types.ScheduledMessage) error {
@@ -261,7 +261,7 @@ func TestBuild_ValidationFailure_MaxUserMessagesReached(t *testing.T) {
 	args := defaultArgs()
 	text := "at 3:00PM message Hello"
 	existingIDs := make([]string, testMaxUserMsgs)
-	for i := 0; i < testMaxUserMsgs; i++ {
+	for i := range testMaxUserMsgs {
 		existingIDs[i] = fmt.Sprintf("id%d", i)
 	}
 
@@ -296,8 +296,8 @@ func TestBuild_PreparationFailure_UserTimezoneFetchError(t *testing.T) {
 	service, mocks := setupScheduleServiceTest(t)
 	args := defaultArgs()
 	text := "at 3:00PM on 2024-01-16 message Hello world"
-	expectedPostAtUTC := time.Date(2024, 1, 16, 15, 0, 0, 0, time.UTC) // 3 PM UTC
-	expectedPostAtLocal := expectedPostAtUTC                           // Displayed in UTC
+	expectedPostAtUTC := time.Date(2024, 1, 16, 15, 0, 0, 0, time.UTC)
+	expectedPostAtLocal := expectedPostAtUTC
 	channelInfo := &ports.ChannelInfo{ChannelID: testChannelID, ChannelLink: testChannelLink, TeamName: testTeamName, ChannelType: model.ChannelTypeOpen}
 	fetchErr := errors.New("api error")
 
@@ -308,7 +308,7 @@ func TestBuild_PreparationFailure_UserTimezoneFetchError(t *testing.T) {
 		DoAndReturn(func(userID string, msg *types.ScheduledMessage) error {
 			assert.Equal(t, testMsgID, msg.ID)
 			assert.True(t, expectedPostAtUTC.Equal(msg.PostAt), "Expected %v, got %v", expectedPostAtUTC, msg.PostAt)
-			assert.Equal(t, testDefaultTZ, msg.Timezone) // Should store default TZ
+			assert.Equal(t, testDefaultTZ, msg.Timezone)
 			return nil
 		})
 	mocks.channel.EXPECT().GetInfoOrUnknown(testChannelID).Return(channelInfo)
@@ -327,8 +327,8 @@ func TestBuild_PreparationFailure_InvalidUserTimezone(t *testing.T) {
 	args := defaultArgs()
 	invalidTZ := "Invalid/Timezone"
 	text := "at 3:00PM on 2024-01-16 message Hello world"
-	expectedPostAtUTC := time.Date(2024, 1, 16, 15, 0, 0, 0, time.UTC) // 3 PM UTC (fallback)
-	expectedPostAtLocal := expectedPostAtUTC                           // Displayed in UTC
+	expectedPostAtUTC := time.Date(2024, 1, 16, 15, 0, 0, 0, time.UTC)
+	expectedPostAtLocal := expectedPostAtUTC
 	channelInfo := &ports.ChannelInfo{ChannelID: testChannelID, ChannelLink: testChannelLink, TeamName: testTeamName, ChannelType: model.ChannelTypeOpen}
 
 	mocks.store.EXPECT().ListUserMessageIDs(testUserID).Return([]string{}, nil)
@@ -338,7 +338,7 @@ func TestBuild_PreparationFailure_InvalidUserTimezone(t *testing.T) {
 		DoAndReturn(func(userID string, msg *types.ScheduledMessage) error {
 			assert.Equal(t, testMsgID, msg.ID)
 			assert.True(t, expectedPostAtUTC.Equal(msg.PostAt), "Expected %v, got %v", expectedPostAtUTC, msg.PostAt)
-			assert.Equal(t, constants.DefaultTimezone, msg.Timezone) // Should store UTC
+			assert.Equal(t, constants.DefaultTimezone, msg.Timezone)
 			return nil
 		})
 	mocks.channel.EXPECT().GetInfoOrUnknown(testChannelID).Return(channelInfo)
