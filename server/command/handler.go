@@ -3,12 +3,9 @@ package command
 import (
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
-	"time"
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
-	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/formatter"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/scheduler"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
@@ -22,8 +19,8 @@ type Handler struct {
 	store           store.Store
 	scheduler       *scheduler.Scheduler
 	channel         ports.ChannelService
-	maxUserMessages int
-	clock           ports.Clock
+	listService     *ListService
+	scheduleService *ScheduleService
 	helpText        string
 }
 
@@ -45,8 +42,8 @@ func NewHandler(
 		store:           store,
 		scheduler:       sched,
 		channel:         channel,
-		maxUserMessages: maxUserMessages,
-		clock:           clk,
+		listService:     NewListService(logger, store, channel),
+		scheduleService: NewScheduleService(logger, user, store, channel, clk, maxUserMessages),
 		helpText:        helpText,
 	}
 }
@@ -74,78 +71,7 @@ func (h *Handler) Execute(args *model.CommandArgs) (*model.CommandResponse, *mod
 }
 
 func (h *Handler) BuildEphemeralList(args *model.CommandArgs) *model.CommandResponse {
-	h.logger.Debug("Building scheduled messages list", "user_id", args.UserId)
-	ids, err := h.store.ListUserMessageIDs(args.UserId)
-	if err != nil {
-		message := fmt.Sprintf("❌ Error retrieving message list:  %v", err)
-		h.logger.Error(message, "user_id", args.UserId)
-		return &model.CommandResponse{
-			ResponseType: model.CommandResponseTypeEphemeral,
-			Text:         message,
-		}
-	}
-	idsLength := len(ids)
-	if idsLength == 0 {
-		return &model.CommandResponse{
-			ResponseType: model.CommandResponseTypeEphemeral,
-			Text:         "You have no scheduled messages.",
-		}
-	}
-	h.logger.Debug(fmt.Sprintf("Found %v scheduled message(s) in user index", idsLength), "user_id", args.UserId)
-
-	var msgs []*types.ScheduledMessage
-	channels := make(map[string]*ports.ChannelInfo)
-	for _, id := range ids {
-		msg, err := h.store.GetScheduledMessage(id)
-		if err == nil {
-			// We don't have atomic operations for saving/deleting a message, so if it can't be found
-			// clean up the user index as a failsafe.
-			if msg.ID == "" {
-				h.logger.Warn(fmt.Sprintf("Cleaning missing message %v from user index", id), "user_id", args.UserId)
-				_ = h.store.CleanupMessageFromUserIndex(msg.UserID, id)
-			} else {
-				if _, exists := channels[msg.ChannelID]; !exists {
-					channels[msg.ChannelID] = h.channel.GetInfoOrUnknown(msg.ChannelID)
-				}
-				msgs = append(msgs, msg)
-			}
-		}
-	}
-	sort.Slice(msgs, func(i, j int) bool {
-		return msgs[i].PostAt.Before(msgs[j].PostAt)
-	})
-
-	var attachments []*model.SlackAttachment
-	for _, m := range msgs {
-		loc, _ := time.LoadLocation(m.Timezone)
-		localTime := m.PostAt.In(loc)
-		header := formatter.FormatListAttachmentHeader(localTime, h.channel.MakeChannelLink(channels[m.ChannelID]), m.MessageContent)
-		attachments = append(attachments, createAttachment(header, m.ID))
-	}
-
-	return &model.CommandResponse{
-		ResponseType: model.CommandResponseTypeEphemeral,
-		Text:         "### Scheduled Messages",
-		Props: map[string]any{
-			"attachments": attachments,
-		},
-	}
-}
-
-func (h *Handler) GetUserTimezone(userID string) string {
-	user, err := h.user.Get(userID)
-	if err != nil {
-		return "UTC"
-	}
-	automaticTimezone, aok := user.Timezone["automaticTimezone"]
-	useAutomaticTimezone, uok := user.Timezone["useAutomaticTimezone"]
-	manualTimezone, mok := user.Timezone["manualTimezone"]
-	if aok && uok && automaticTimezone != "" && useAutomaticTimezone == "true" {
-		return automaticTimezone
-	} else if mok && manualTimezone != "" {
-		return manualTimezone
-	}
-	return "UTC"
+	return h.listService.Build(args.UserId)
 }
 
 func (h *Handler) UserDeleteMessage(userID string, msgID string) (*types.ScheduledMessage, error) {
@@ -198,97 +124,6 @@ func (h *Handler) scheduleHelp() *model.CommandResponse {
 	}
 }
 
-func (h *Handler) checkMaxUserMessages(userID string) error {
-	ids, userIndexErr := h.store.ListUserMessageIDs(userID)
-	if userIndexErr != nil {
-		return userIndexErr
-	}
-	if len(ids) >= h.maxUserMessages {
-		return fmt.Errorf("you cannot schedule more than %d messages", h.maxUserMessages)
-	}
-	return nil
-}
-
 func (h *Handler) handleSchedule(args *model.CommandArgs, text string) *model.CommandResponse {
-	h.logger.Debug("Trying to schedule message", "user_id", args.UserId, "text", text)
-	maxMessagesErr := h.checkMaxUserMessages(args.UserId)
-	if maxMessagesErr != nil {
-		return &model.CommandResponse{
-			ResponseType: model.CommandResponseTypeEphemeral,
-			Text:         fmt.Sprintf("❌ Error scheduling message: %v", maxMessagesErr),
-		}
-	}
-	if text == "" {
-		return &model.CommandResponse{
-			ResponseType: model.CommandResponseTypeEphemeral,
-			Text:         "Trying to schedule a message? Use `/schedule help` for instructions.",
-		}
-	}
-	parsed, parseInputErr := parseScheduleInput(text)
-	if parseInputErr != nil {
-		return &model.CommandResponse{
-			ResponseType: model.CommandResponseTypeEphemeral,
-			Text:         fmt.Sprintf("Error: %v, Original input: `%v`", parseInputErr, text),
-		}
-	}
-
-	tz := h.GetUserTimezone(args.UserId)
-	loc, _ := time.LoadLocation(tz)
-	now := h.clock.Now().In(loc)
-
-	schedTime, resolveErr := resolveScheduledTime(parsed.TimeStr, parsed.DateStr, now, loc)
-	if resolveErr != nil {
-		return &model.CommandResponse{
-			ResponseType: model.CommandResponseTypeEphemeral,
-			Text:         fmt.Sprintf("Error parsing time/date: %v", resolveErr),
-		}
-	}
-
-	id := h.store.GenerateMessageID()
-	msg := &types.ScheduledMessage{
-		ID:             id,
-		UserID:         args.UserId,
-		ChannelID:      args.ChannelId,
-		PostAt:         schedTime.UTC(),
-		MessageContent: parsed.Message,
-		Timezone:       tz,
-	}
-
-	saveErr := h.store.SaveScheduledMessage(args.UserId, msg)
-	channelInfo := h.channel.MakeChannelLink(h.channel.GetInfoOrUnknown(args.ChannelId))
-
-	if saveErr != nil {
-		message := formatter.FormatScheduleError(schedTime, tz, channelInfo, saveErr)
-		h.logger.Error(message, "user_id", args.UserId)
-		return &model.CommandResponse{
-			ResponseType: model.CommandResponseTypeEphemeral,
-			Text:         message,
-		}
-	}
-	message := formatter.FormatScheduleSuccess(schedTime, tz, channelInfo)
-	h.logger.Info(message, "user_id", args.UserId)
-	return &model.CommandResponse{
-		ResponseType: model.CommandResponseTypeEphemeral,
-		Text:         message,
-	}
-}
-
-func createAttachment(text string, messageID string) *model.SlackAttachment {
-	return &model.SlackAttachment{
-		Text: text,
-		Actions: []*model.PostAction{
-			{
-				Id:    "delete",
-				Name:  "Delete",
-				Style: "danger",
-				Integration: &model.PostActionIntegration{
-					URL: "/plugins/com.mattermost.plugin-poor-mans-scheduled-messages/api/v1/delete",
-					Context: map[string]any{
-						"action": "delete",
-						"id":     messageID,
-					},
-				},
-			},
-		},
-	}
+	return h.scheduleService.Build(args, text)
 }
