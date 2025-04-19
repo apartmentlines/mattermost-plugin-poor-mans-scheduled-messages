@@ -6,7 +6,6 @@ import (
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
-	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/scheduler"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/mattermost/mattermost/server/public/model"
 )
@@ -16,7 +15,6 @@ type Handler struct {
 	slasher         ports.SlashCommandService
 	user            ports.UserService
 	store           ports.Store
-	scheduler       *scheduler.Scheduler
 	channel         ports.ChannelService
 	listService     ports.ListService
 	scheduleService ports.ScheduleService
@@ -28,7 +26,6 @@ func NewHandler(
 	slasher ports.SlashCommandService,
 	user ports.UserService,
 	store ports.Store,
-	sched *scheduler.Scheduler,
 	channel ports.ChannelService,
 	listSvc ports.ListService,
 	scheduleSvc ports.ScheduleService,
@@ -40,7 +37,6 @@ func NewHandler(
 		slasher:         slasher,
 		user:            user,
 		store:           store,
-		scheduler:       sched,
 		channel:         channel,
 		listService:     listSvc,
 		scheduleService: scheduleSvc,

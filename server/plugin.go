@@ -33,7 +33,6 @@ type AppBuilder interface {
 	NewCommandHandler(
 		cli *pluginapi.Client,
 		st ports.Store,
-		sched *scheduler.Scheduler,
 		ch ports.ChannelService,
 		listSvc ports.ListService,
 		scheduleSvc ports.ScheduleService,
@@ -58,7 +57,6 @@ func (prodBuilder) NewScheduler(cli *pluginapi.Client, st ports.Store, ch ports.
 func (prodBuilder) NewCommandHandler(
 	cli *pluginapi.Client,
 	st ports.Store,
-	sched *scheduler.Scheduler,
 	ch ports.ChannelService,
 	listSvc ports.ListService,
 	scheduleSvc ports.ScheduleService,
@@ -69,7 +67,6 @@ func (prodBuilder) NewCommandHandler(
 		&cli.SlashCommand,
 		&cli.User,
 		st,
-		sched,
 		ch,
 		listSvc,
 		scheduleSvc,
@@ -210,7 +207,6 @@ func (p *Plugin) initialize(botID string, clk ports.Clock, builder AppBuilder) e
 	p.Command = builder.NewCommandHandler(
 		p.client,
 		p.Store,
-		p.Scheduler,
 		p.Channel,
 		listService,
 		scheduleService,
