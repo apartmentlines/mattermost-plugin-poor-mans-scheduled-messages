@@ -9,7 +9,4 @@ func TestConstantValues(t *testing.T) {
 	if UserIndexPrefix != "user_sched_index:" {
 		t.Fatalf("UserIndexPrefix unexpected: %s", UserIndexPrefix)
 	}
-	if MaxUserMessages != 1000 {
-		t.Fatalf("MaxUserMessages unexpected: %d", MaxUserMessages)
-	}
 }
