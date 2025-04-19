@@ -11,7 +11,7 @@ import (
 
 func EnsureBot(botAPI ports.BotService, imgSvc ports.BotProfileImageService) (string, error) {
 	bot := &model.Bot{
-		Username:    "poor-mans-scheduled-messages",
+		Username:    "scheduled-messages",
 		DisplayName: "Message Scheduler",
 		Description: "Poor Man's Scheduled Messages Bot",
 	}

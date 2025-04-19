@@ -32,7 +32,7 @@ func TestEnsureBot(t *testing.T) {
 		svc.EXPECT().
 			EnsureBot(gomock.AssignableToTypeOf(&model.Bot{}), gomock.Any()).
 			DoAndReturn(func(b *model.Bot, _ pluginapi.EnsureBotOption) (string, error) {
-				if b.Username != "poor-mans-scheduled-messages" {
+				if b.Username != "scheduled-messages" {
 					t.Fatalf("unexpected username %s", b.Username)
 				}
 				if b.DisplayName != "Message Scheduler" {
