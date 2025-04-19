@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/testutil"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/testutil"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func pluginTestApi() *plugintest.API {
+func pluginTestAPI() *plugintest.API {
 	api := &plugintest.API{}
 	api.On("LogInfo", mock.Anything, mock.Anything).Maybe()
 	api.On("LogError", mock.Anything, mock.Anything, mock.Anything).Maybe()
@@ -25,7 +25,7 @@ func pluginTestApi() *plugintest.API {
 
 func TestLoadHelpTextBypass(t *testing.T) {
 	p := &Plugin{}
-	p.API = pluginTestApi()
+	p.API = pluginTestAPI()
 	got, err := p.loadHelpText("inline")
 	require.NoError(t, err)
 	require.Equal(t, "inline", got)
@@ -37,7 +37,7 @@ func TestLoadHelpTextFromFile(t *testing.T) {
 	_ = os.MkdirAll(assets, 0700)
 	require.NoError(t, os.WriteFile(filepath.Join(assets, "help.md"), []byte("file"), 0600))
 
-	api := pluginTestApi()
+	api := pluginTestAPI()
 	api.On("GetBundlePath").Return(tmp, nil)
 
 	p := &Plugin{}
@@ -48,7 +48,7 @@ func TestLoadHelpTextFromFile(t *testing.T) {
 }
 
 func TestLoadHelpTextBundleError(t *testing.T) {
-	api := pluginTestApi()
+	api := pluginTestAPI()
 	api.On("GetBundlePath").Return("", errors.New("fail"))
 
 	p := &Plugin{}
@@ -60,7 +60,7 @@ func TestLoadHelpTextBundleError(t *testing.T) {
 func TestLoadHelpTextReadError(t *testing.T) {
 	tmp := t.TempDir()
 
-	api := pluginTestApi()
+	api := pluginTestAPI()
 	api.On("GetBundlePath").Return(tmp, nil)
 
 	p := &Plugin{}
@@ -70,7 +70,7 @@ func TestLoadHelpTextReadError(t *testing.T) {
 }
 
 func TestOnActivateWithSuccess(t *testing.T) {
-	api := pluginTestApi()
+	api := pluginTestAPI()
 	api.On("RegisterCommand", mock.Anything).Return(nil)
 
 	clk := func() ports.Clock { return testutil.FakeClock{NowTime: time.Now()} }
@@ -105,7 +105,7 @@ func TestOnActivateWithSuccess(t *testing.T) {
 }
 
 func TestOnActivateWithBotError(t *testing.T) {
-	api := pluginTestApi()
+	api := pluginTestAPI()
 
 	pl := &Plugin{}
 	pl.API = api
@@ -124,7 +124,7 @@ func TestOnActivateWithBotError(t *testing.T) {
 }
 
 func TestOnActivateHelpTextError(t *testing.T) {
-	api := pluginTestApi()
+	api := pluginTestAPI()
 	api.On("GetBundlePath").Return("", errors.New("bundle path err"))
 
 	p := &Plugin{}
@@ -144,7 +144,7 @@ func TestOnActivateHelpTextError(t *testing.T) {
 }
 
 func TestOnActivateWithRegisterError(t *testing.T) {
-	api := pluginTestApi()
+	api := pluginTestAPI()
 	api.On("RegisterCommand", mock.Anything).Return(errors.New("register-fail"))
 
 	pl := &Plugin{}

@@ -85,7 +85,7 @@ func (p *Plugin) updateEphemeralPostWithList(userID string, postID string, chann
 func (p *Plugin) sendDeletionConfirmation(userID string, channelID string, deletedMsg *types.ScheduledMessage) {
 	loc, err := time.LoadLocation(deletedMsg.Timezone)
 	if err != nil {
-		p.client.Log.Warn("Failed to load timezone for confirmation", "timezone", deletedMsg.Timezone, "error", err)
+		p.logger.Warn("Failed to load timezone for confirmation", "timezone", deletedMsg.Timezone, "error", err)
 		loc = time.UTC
 	}
 	humanTime := deletedMsg.PostAt.In(loc).Format("Jan 2, 2006 3:04 PM")
