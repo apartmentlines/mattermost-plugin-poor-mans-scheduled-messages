@@ -10,16 +10,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type Store interface {
-	SaveScheduledMessage(userID string, msg *types.ScheduledMessage) error
-	DeleteScheduledMessage(userID string, msgID string) error
-	CleanupMessageFromUserIndex(userID string, msgID string) error
-	GetScheduledMessage(msgID string) (*types.ScheduledMessage, error)
-	ListAllScheduledIDs() (map[string]int64, error)
-	ListUserMessageIDs(userID string) ([]string, error)
-	GenerateMessageID() string
-}
-
 type kvStore struct {
 	logger              ports.Logger
 	kv                  ports.KVService
@@ -27,7 +17,7 @@ type kvStore struct {
 	maxUserMessages     int
 }
 
-func NewKVStore(logger ports.Logger, kv ports.KVService, listMatchingService ports.ListMatchingService, maxUserMessages int) Store {
+func NewKVStore(logger ports.Logger, kv ports.KVService, listMatchingService ports.ListMatchingService, maxUserMessages int) ports.Store {
 	logger.Debug("Creating new KVStore instance")
 	return &kvStore{logger: logger, kv: kv, listMatchingService: listMatchingService, maxUserMessages: maxUserMessages}
 }

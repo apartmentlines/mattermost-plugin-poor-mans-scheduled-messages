@@ -8,7 +8,6 @@ import (
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/formatter"
-	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/mattermost/mattermost/server/public/model"
 )
@@ -16,7 +15,7 @@ import (
 type ScheduleService struct {
 	logger          ports.Logger
 	userAPI         ports.UserService
-	store           store.Store
+	store           ports.Store
 	channel         ports.ChannelService
 	clock           ports.Clock
 	maxUserMessages int
@@ -25,7 +24,7 @@ type ScheduleService struct {
 func NewScheduleService(
 	logger ports.Logger,
 	userAPI ports.UserService,
-	store store.Store,
+	store ports.Store,
 	channel ports.ChannelService,
 	clk ports.Clock,
 	maxUserMessages int,

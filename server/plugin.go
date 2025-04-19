@@ -28,9 +28,9 @@ type BotEnsurer func(ports.BotService, ports.BotProfileImageService) (string, er
 
 type AppBuilder interface {
 	NewChannel(cli *pluginapi.Client) *channel.Channel
-	NewStore(cli *pluginapi.Client, maxUserMessages int) store.Store
-	NewScheduler(cli *pluginapi.Client, st store.Store, ch ports.ChannelService, botID string, clk ports.Clock) *scheduler.Scheduler
-	NewCommandHandler(cli *pluginapi.Client, st store.Store, sched *scheduler.Scheduler, ch ports.ChannelService, maxUserMessages int, clk ports.Clock, help string) *command.Handler
+	NewStore(cli *pluginapi.Client, maxUserMessages int) ports.Store
+	NewScheduler(cli *pluginapi.Client, st ports.Store, ch ports.ChannelService, botID string, clk ports.Clock) *scheduler.Scheduler
+	NewCommandHandler(cli *pluginapi.Client, st ports.Store, sched *scheduler.Scheduler, ch ports.ChannelService, maxUserMessages int, clk ports.Clock, help string) *command.Handler
 }
 
 type prodBuilder struct{}
@@ -39,15 +39,15 @@ func (prodBuilder) NewChannel(cli *pluginapi.Client) *channel.Channel {
 	return channel.New(&cli.Log, &cli.Channel, &cli.Team, &cli.User)
 }
 
-func (prodBuilder) NewStore(cli *pluginapi.Client, maxUserMessages int) store.Store {
+func (prodBuilder) NewStore(cli *pluginapi.Client, maxUserMessages int) ports.Store {
 	return store.NewKVStore(&cli.Log, &cli.KV, mm.ListMatchingService{}, maxUserMessages)
 }
 
-func (prodBuilder) NewScheduler(cli *pluginapi.Client, st store.Store, ch ports.ChannelService, botID string, clk ports.Clock) *scheduler.Scheduler {
+func (prodBuilder) NewScheduler(cli *pluginapi.Client, st ports.Store, ch ports.ChannelService, botID string, clk ports.Clock) *scheduler.Scheduler {
 	return scheduler.New(&cli.Log, &cli.Post, st, ch, botID, clk)
 }
 
-func (prodBuilder) NewCommandHandler(cli *pluginapi.Client, st store.Store, sched *scheduler.Scheduler, ch ports.ChannelService, maxUserMessages int, clk ports.Clock, help string) *command.Handler {
+func (prodBuilder) NewCommandHandler(cli *pluginapi.Client, st ports.Store, sched *scheduler.Scheduler, ch ports.ChannelService, maxUserMessages int, clk ports.Clock, help string) *command.Handler {
 	return command.NewHandler(&cli.Log, &cli.SlashCommand, &cli.User, st, sched, ch, maxUserMessages, clk, help)
 }
 
@@ -61,7 +61,7 @@ type Plugin struct {
 	client                 *pluginapi.Client
 	BotID                  string
 	Scheduler              *scheduler.Scheduler
-	Store                  store.Store
+	Store                  ports.Store
 	Channel                ports.ChannelService
 	Command                command.Interface
 	defaultMaxUserMessages int

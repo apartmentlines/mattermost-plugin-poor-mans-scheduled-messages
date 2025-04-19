@@ -2,6 +2,7 @@ package ports
 
 import (
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/clock"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
 )
@@ -68,4 +69,14 @@ type BotProfileImageService interface {
 
 type ListMatchingService interface {
 	WithPrefix(prefix string) pluginapi.ListKeysOption
+}
+
+type Store interface {
+	SaveScheduledMessage(userID string, msg *types.ScheduledMessage) error
+	DeleteScheduledMessage(userID string, msgID string) error
+	CleanupMessageFromUserIndex(userID string, msgID string) error
+	GetScheduledMessage(msgID string) (*types.ScheduledMessage, error)
+	ListAllScheduledIDs() (map[string]int64, error)
+	ListUserMessageIDs(userID string) ([]string, error)
+	GenerateMessageID() string
 }

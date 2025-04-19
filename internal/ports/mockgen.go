@@ -10,3 +10,4 @@ package ports
 //go:generate mockgen -destination=../../adapters/mock/team_mock.go -package=mock github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports TeamService
 //go:generate mockgen -destination=../../adapters/mock/slash_mock.go -package=mock github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports SlashCommandService
 //go:generate mockgen -destination=../../adapters/mock/user_mock.go -package=mock github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports UserService
+//go:generate mockgen -destination=../../adapters/mock/store_mock.go -package=mock github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports Store

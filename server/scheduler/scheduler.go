@@ -7,7 +7,6 @@ import (
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/formatter"
-	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/mattermost/mattermost/server/public/model"
 )
@@ -17,7 +16,7 @@ type tickerFactory func(d time.Duration) *time.Ticker
 type Scheduler struct {
 	logger    ports.Logger
 	poster    ports.PostService
-	store     store.Store
+	store     ports.Store
 	linker    ports.ChannelService
 	botID     string
 	clock     ports.Clock
@@ -27,7 +26,7 @@ type Scheduler struct {
 	newTicker tickerFactory
 }
 
-func New(logger ports.Logger, poster ports.PostService, store store.Store, linker ports.ChannelService, botID string, clk ports.Clock) *Scheduler {
+func New(logger ports.Logger, poster ports.PostService, store ports.Store, linker ports.ChannelService, botID string, clk ports.Clock) *Scheduler {
 	logger.Debug("Creating new scheduler instance")
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Scheduler{
