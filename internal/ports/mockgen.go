@@ -13,4 +13,3 @@ package ports
 //go:generate mockgen -destination=../../adapters/mock/store_mock.go -package=mock github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports Store
 //go:generate mockgen -destination=../../adapters/mock/list_service_mock.go -package=mock github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports ListService
 //go:generate mockgen -destination=../../adapters/mock/schedule_service_mock.go -package=mock github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports ScheduleService
-
