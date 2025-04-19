@@ -78,7 +78,7 @@ func (p *Plugin) loadHelpText(text string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get bundle path: %w", err)
 	}
-	helpFilePath := filepath.Join(bundlePath, "assets", "help.md")
+	helpFilePath := filepath.Join(bundlePath, constants.AssetsDir, constants.HelpFilename)
 	helpBytes, err := os.ReadFile(helpFilePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read help file %s: %w", helpFilePath, err)

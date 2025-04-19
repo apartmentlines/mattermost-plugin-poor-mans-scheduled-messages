@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/scheduler"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
@@ -58,14 +59,15 @@ func (h *Handler) Register() error {
 }
 
 func (h *Handler) Execute(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	commandText := strings.TrimSpace(args.Command[len("/schedule"):])
+	commandText := strings.TrimSpace(args.Command[len("/"+constants.CommandTrigger):])
 
 	switch {
-	case strings.HasPrefix(commandText, "help"):
+	case strings.HasPrefix(commandText, constants.SubcommandHelp):
 		return h.scheduleHelp(), nil
-	case strings.HasPrefix(commandText, "list"):
+	case strings.HasPrefix(commandText, constants.SubcommandList):
 		return h.BuildEphemeralList(args), nil
 	default:
+		// Assume it's a schedule request if not help or list
 		return h.handleSchedule(args, commandText), nil
 	}
 }
@@ -93,27 +95,31 @@ func (h *Handler) UserDeleteMessage(userID string, msgID string) (*types.Schedul
 
 func (h *Handler) scheduleDefinition() *model.Command {
 	return &model.Command{
-		Trigger:          "schedule",
+		Trigger:          constants.CommandTrigger,
 		AutoComplete:     true,
-		AutoCompleteDesc: "Schedule messages to be sent later",
-		AutoCompleteHint: "[subcommand]",
+		AutoCompleteDesc: constants.AutocompleteDesc,
+		AutoCompleteHint: constants.AutocompleteHint,
 		AutocompleteData: h.getScheduleAutocompleteData(),
-		DisplayName:      "Schedule",
-		Description:      "Send messages at a future time.",
+		DisplayName:      constants.CommandDisplayName,
+		Description:      constants.CommandDescription,
 	}
 }
 
 func (h *Handler) getScheduleAutocompleteData() *model.AutocompleteData {
-	schedule := model.NewAutocompleteData("schedule", "[subcommand]", "Schedule messages")
-	at := model.NewAutocompleteData("at", "<time> [on <date>] message <text>", "Schedule a new message")
-	at.AddTextArgument("Time", "Time to send the message, e.g. 3:15PM, 3pm", "")
-	at.AddTextArgument("Date", "(Optional) Date to send the message, e.g. 2026-01-01", "")
-	at.AddTextArgument("Message", "The message content", "")
+	schedule := model.NewAutocompleteData(constants.CommandTrigger, constants.AutocompleteHint, constants.AutocompleteDesc)
+
+	at := model.NewAutocompleteData(constants.SubcommandAt, constants.AutocompleteAtHint, constants.AutocompleteAtDesc)
+	at.AddTextArgument(constants.AutocompleteAtArgTimeName, constants.AutocompleteAtArgTimeHint, "")
+	at.AddTextArgument(constants.AutocompleteAtArgDateName, constants.AutocompleteAtArgDateHint, "")
+	at.AddTextArgument(constants.AutocompleteAtArgMsgName, constants.AutocompleteAtArgMsgHint, "")
 	schedule.AddCommand(at)
-	list := model.NewAutocompleteData("list", "", "List your scheduled messages")
+
+	list := model.NewAutocompleteData(constants.SubcommandList, constants.AutocompleteListHint, constants.AutocompleteListDesc)
 	schedule.AddCommand(list)
-	help := model.NewAutocompleteData("help", "", "Show help text")
+
+	help := model.NewAutocompleteData(constants.SubcommandHelp, constants.AutocompleteHelpHint, constants.AutocompleteHelpDesc)
 	schedule.AddCommand(help)
+
 	return schedule
 }
 

@@ -2,9 +2,11 @@ package bot
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/adapters/mock"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 	"github.com/golang/mock/gomock"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
@@ -48,8 +50,9 @@ func TestEnsureBot(t *testing.T) {
 		if id != "bot123" {
 			t.Fatalf("expected bot123 got %s", id)
 		}
-		if img.pathCalled != "assets/profile.png" {
-			t.Fatalf("expected assets/profile.png got %s", img.pathCalled)
+		expectedPath := filepath.Join(constants.AssetsDir, constants.ProfileImageFilename)
+		if img.pathCalled != expectedPath {
+			t.Fatalf("expected %s got %s", expectedPath, img.pathCalled)
 		}
 	})
 
@@ -68,8 +71,9 @@ func TestEnsureBot(t *testing.T) {
 		if id != "" {
 			t.Fatalf("expected empty id got %s", id)
 		}
-		if img.pathCalled != "assets/profile.png" {
-			t.Fatalf("expected assets/profile.png got %s", img.pathCalled)
+		expectedPath := filepath.Join(constants.AssetsDir, constants.ProfileImageFilename)
+		if img.pathCalled != expectedPath {
+			t.Fatalf("expected %s got %s", expectedPath, img.pathCalled)
 		}
 	})
 }

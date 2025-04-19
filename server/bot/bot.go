@@ -2,8 +2,10 @@ package bot
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 	"github.com/mattermost/mattermost/server/public/model"
 )
 
@@ -13,7 +15,8 @@ func EnsureBot(botAPI ports.BotService, imgSvc ports.BotProfileImageService) (st
 		DisplayName: "Message Scheduler",
 		Description: "Poor Man's Scheduled Messages Bot",
 	}
-	profileImage := imgSvc.ProfileImagePath("assets/profile.png")
+	profileImagePath := filepath.Join(constants.AssetsDir, constants.ProfileImageFilename)
+	profileImage := imgSvc.ProfileImagePath(profileImagePath)
 	botUserID, err := botAPI.EnsureBot(bot, profileImage)
 	if err != nil {
 		return "", fmt.Errorf("failed to ensure bot: %w", err)

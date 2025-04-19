@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 	"github.com/mattermost/mattermost/server/public/model"
 )
 
@@ -44,7 +45,7 @@ func (c *Channel) GetInfo(channelID string) (*ports.ChannelInfo, error) {
 }
 
 func (c *Channel) getDirectOrGroupChannelInfo(channel *model.Channel) (*ports.ChannelInfo, error) {
-	members, listMembersErr := c.channelAPI.ListMembers(channel.Id, 0, 100)
+	members, listMembersErr := c.channelAPI.ListMembers(channel.Id, constants.DefaultPage, constants.DefaultChannelMembersPerPage)
 	if listMembersErr != nil {
 		return nil, fmt.Errorf("failed to get members of channel %s: %w", channel.Id, listMembersErr)
 	}
@@ -75,7 +76,7 @@ func (c *Channel) getPublicOrPrivateChannelInfo(channel *model.Channel) (*ports.
 
 func (c *Channel) UnknownChannel() *ports.ChannelInfo {
 	return &ports.ChannelInfo{
-		ChannelLink: "N/A",
+		ChannelLink: constants.UnknownChannelPlaceholder,
 	}
 }
 

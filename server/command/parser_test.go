@@ -1,9 +1,12 @@
 package command
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 )
 
 func TestParseScheduleInput(t *testing.T) {
@@ -48,19 +51,19 @@ func TestParseScheduleInput(t *testing.T) {
 			name:        "Missing 'message' keyword",
 			input:       "at 3pm on mon foo bar",
 			wantErr:     true,
-			errContains: "invalid format",
+			errContains: constants.ParserErrInvalidFormat,
 		},
 		{
 			name:        "Missing 'at' keyword",
 			input:       "3pm message hello",
 			wantErr:     true,
-			errContains: "invalid format",
+			errContains: constants.ParserErrInvalidFormat,
 		},
 		{
 			name:        "Empty input",
 			input:       "",
 			wantErr:     true,
-			errContains: "invalid format",
+			errContains: constants.ParserErrInvalidFormat,
 		},
 	}
 
@@ -330,7 +333,7 @@ func TestResolveScheduledTime(t *testing.T) {
 		{"specific date ok", "3pm", "2024-01-01", now, time.Date(2024, time.January, 1, 15, 0, 0, 0, loc), false, ""},
 		{"specific date past", "3pm", "2024-01-01", time.Date(2024, time.January, 1, 16, 0, 0, 0, loc), time.Time{}, true, "already in the past"},
 		{"invalid time", "invalid", "", now, time.Time{}, true, "could not parse time"},
-		{"invalid date", "3pm", "foo", now, time.Time{}, true, "invalid date format specified"},
+		{"invalid date", "3pm", "foo", now, time.Time{}, true, fmt.Sprintf(constants.ParserErrInvalidDateFormat, "foo")},
 	}
 
 	for _, tc := range tests {

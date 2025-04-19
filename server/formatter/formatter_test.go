@@ -2,8 +2,11 @@ package formatter
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 )
 
 func TestFormatScheduleSuccess(t *testing.T) {
@@ -11,7 +14,7 @@ func TestFormatScheduleSuccess(t *testing.T) {
 	tz := "UTC"
 	channel := "in channel: ~town-square"
 
-	expected := "✅ Scheduled message for " + ts.Format(TimeLayout) + " (" + tz + ") " + channel
+	expected := fmt.Sprintf("%s Scheduled message for %s (%s) %s", constants.EmojiSuccess, ts.Format(constants.TimeLayout), tz, channel)
 
 	got := FormatScheduleSuccess(ts, tz, channel)
 	if got != expected {
@@ -25,7 +28,7 @@ func TestFormatScheduleError(t *testing.T) {
 	channel := "in channel: ~town-square"
 	errVal := errors.New("store failure")
 
-	expected := "❌ Error scheduling message for " + ts.Format(TimeLayout) + " (" + tz + ") " + channel + ":  " + errVal.Error()
+	expected := fmt.Sprintf("%s Error scheduling message for %s (%s) %s:  %v", constants.EmojiError, ts.Format(constants.TimeLayout), tz, channel, errVal)
 
 	got := FormatScheduleError(ts, tz, channel, errVal)
 	if got != expected {
@@ -38,7 +41,7 @@ func TestFormatSchedulerFailure(t *testing.T) {
 	postErr := errors.New("post failure")
 	orig := "hello world"
 
-	expected := "❌ Error scheduling message " + channel + ": " + postErr.Error() + " -- original message: " + orig
+	expected := fmt.Sprintf("%s Error scheduling message %s: %v -- original message: %s", constants.EmojiError, channel, postErr, orig)
 
 	got := FormatSchedulerFailure(channel, postErr, orig)
 	if got != expected {
@@ -51,7 +54,7 @@ func TestFormatListAttachmentHeader(t *testing.T) {
 	channel := "in channel: ~town-square"
 	msg := "hello world"
 
-	expected := "##### " + ts.Format(TimeLayout) + "\n" + channel + "\n\n" + msg
+	expected := fmt.Sprintf("##### %s\n%s\n\n%s", ts.Format(constants.TimeLayout), channel, msg)
 
 	got := FormatListAttachmentHeader(ts, channel, msg)
 	if got != expected {

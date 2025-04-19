@@ -14,6 +14,7 @@ import (
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/adapters/mock"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/testutil"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/golang/mock/gomock"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -72,7 +73,7 @@ func createDeleteRequest(t *testing.T, userID, postID, channelID, action, msgID 
 	require.NoError(t, err)
 	r := httptest.NewRequest(http.MethodPost, "/api/v1/delete", bytes.NewReader(b))
 	if userID != "" {
-		r.Header.Set("Mattermost-User-ID", userID)
+		r.Header.Set(constants.HTTPHeaderMattermostUserID, userID)
 	}
 	return r
 }
@@ -104,7 +105,7 @@ func TestMattermostAuthorizationRequired_Authorized(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("Mattermost-User-ID", "test-user-id")
+	req.Header.Set(constants.HTTPHeaderMattermostUserID, "test-user-id")
 	rr := httptest.NewRecorder()
 
 	p.MattermostAuthorizationRequired(dummyHandler).ServeHTTP(rr, req)
@@ -186,7 +187,7 @@ func TestServeHTTP_Delete_BadRequestBody(t *testing.T) { // TC-3.2
 	p, _, _, _ := setupPluginForAPI(t, ctrl)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/delete", strings.NewReader("{bad json"))
-	req.Header.Set("Mattermost-User-ID", "u1")
+	req.Header.Set(constants.HTTPHeaderMattermostUserID, "u1")
 	rr := httptest.NewRecorder()
 
 	p.ServeHTTP(nil, rr, req)
@@ -281,8 +282,8 @@ func TestServeHTTP_Delete_HappyPath_NormalTimezone(t *testing.T) { // TC-3.5
 	postMock.EXPECT().SendEphemeralPost(userID, gomock.Any()).Do(func(_ string, post *model.Post) {
 		assert.Equal(t, userID, post.UserId)
 		assert.Equal(t, channelID, post.ChannelId)
-		// Jan 2, 2006 3:04 PM is the expected format
-		expectedMsg := fmt.Sprintf("✅ Message scheduled for **Jan 2, 2025 3:04 PM** %s has been deleted.", expectedChannelLink)
+		expectedTimeStr := expectedTime.Format(constants.TimeLayout)
+		expectedMsg := fmt.Sprintf("%s Message scheduled for **%s** %s has been deleted.", constants.EmojiSuccess, expectedTimeStr, expectedChannelLink)
 		assert.Equal(t, expectedMsg, post.Message)
 	})
 
@@ -332,7 +333,8 @@ func TestServeHTTP_Delete_HappyPath_InvalidTimezoneFallback(t *testing.T) { // T
 	postMock.EXPECT().UpdateEphemeralPost(userID, gomock.Any()) // Check details implicitly via TC-3.5
 	postMock.EXPECT().SendEphemeralPost(userID, gomock.Any()).Do(func(_ string, post *model.Post) {
 		// Expect UTC time format because the timezone was invalid
-		expectedMsg := fmt.Sprintf("✅ Message scheduled for **Jan 2, 2025 3:04 PM** %s has been deleted.", expectedChannelLink)
+		expectedTimeStr := expectedTime.Format(constants.TimeLayout) // Format in UTC
+		expectedMsg := fmt.Sprintf("%s Message scheduled for **%s** %s has been deleted.", constants.EmojiSuccess, expectedTimeStr, expectedChannelLink)
 		assert.Equal(t, expectedMsg, post.Message)
 	})
 
@@ -394,9 +396,8 @@ func TestSendDeletionConfirmation_NormalTimezone(t *testing.T) { // TC-5.1
 	postMock.EXPECT().SendEphemeralPost(userID, gomock.Any()).Do(func(_ string, post *model.Post) {
 		assert.Equal(t, userID, post.UserId)
 		assert.Equal(t, channelID, post.ChannelId)
-		// Expected format: "Jan 2, 2006 3:04 PM" in the specified timezone
-		expectedTimeStr := "Jul 4, 2024 10:30 AM"
-		expectedMsg := fmt.Sprintf("✅ Message scheduled for **%s** %s has been deleted.", expectedTimeStr, expectedChannelLink)
+		expectedTimeStr := postAt.Format(constants.TimeLayout)
+		expectedMsg := fmt.Sprintf("%s Message scheduled for **%s** %s has been deleted.", constants.EmojiSuccess, expectedTimeStr, expectedChannelLink)
 		assert.Equal(t, expectedMsg, post.Message)
 	})
 
@@ -428,9 +429,8 @@ func TestSendDeletionConfirmation_InvalidTimezoneFallback(t *testing.T) { // TC-
 	postMock.EXPECT().SendEphemeralPost(userID, gomock.Any()).Do(func(_ string, post *model.Post) {
 		assert.Equal(t, userID, post.UserId)
 		assert.Equal(t, channelID, post.ChannelId)
-		// Expected format: "Jan 2, 2006 3:04 PM" in UTC
-		expectedTimeStr := "Jul 4, 2024 10:30 AM"
-		expectedMsg := fmt.Sprintf("✅ Message scheduled for **%s** %s has been deleted.", expectedTimeStr, expectedChannelLink)
+		expectedTimeStr := postAt.Format(constants.TimeLayout) // Format in UTC
+		expectedMsg := fmt.Sprintf("%s Message scheduled for **%s** %s has been deleted.", constants.EmojiSuccess, expectedTimeStr, expectedChannelLink)
 		assert.Equal(t, expectedMsg, post.Message)
 	})
 

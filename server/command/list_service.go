@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/formatter"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
@@ -29,7 +30,7 @@ func NewListService(logger ports.Logger, store store.Store, channel ports.Channe
 func (l *ListService) Build(userID string) *model.CommandResponse {
 	msgs, err := l.loadMessages(userID)
 	if err != nil {
-		return errorResponse(fmt.Sprintf("❌ Error retrieving message list:  %v", err))
+		return errorResponse(fmt.Sprintf("%s Error retrieving message list:  %v", constants.EmojiError, err))
 	}
 	if len(msgs) == 0 {
 		return emptyResponse()
@@ -97,14 +98,14 @@ func errorResponse(txt string) *model.CommandResponse {
 func emptyResponse() *model.CommandResponse {
 	return &model.CommandResponse{
 		ResponseType: model.CommandResponseTypeEphemeral,
-		Text:         "You have no scheduled messages.",
+		Text:         constants.EmptyListMessage,
 	}
 }
 
 func successResponse(atts []*model.SlackAttachment) *model.CommandResponse {
 	return &model.CommandResponse{
 		ResponseType: model.CommandResponseTypeEphemeral,
-		Text:         "### Scheduled Messages",
+		Text:         constants.ListHeader,
 		Props: map[string]any{
 			"attachments": atts,
 		},

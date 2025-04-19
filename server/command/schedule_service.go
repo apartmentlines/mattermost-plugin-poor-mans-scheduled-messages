@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/formatter"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
@@ -70,7 +71,7 @@ func (s *ScheduleService) checkMaxUserMessages(userID string) error {
 func (s *ScheduleService) getUserTimezone(userID string) string {
 	user, err := s.userAPI.Get(userID)
 	if err != nil {
-		return "UTC"
+		return constants.DefaultTimezone
 	}
 	automaticTimezone, aok := user.Timezone["automaticTimezone"]
 	useAutomaticTimezone, uok := user.Timezone["useAutomaticTimezone"]
@@ -81,15 +82,16 @@ func (s *ScheduleService) getUserTimezone(userID string) string {
 	if mok && manualTimezone != "" {
 		return manualTimezone
 	}
-	return "UTC"
+	return constants.DefaultTimezone
 }
 
 func (s *ScheduleService) validateRequest(userID, text string) *model.CommandResponse {
 	if err := s.checkMaxUserMessages(userID); err != nil {
-		return s.errorResponse(fmt.Sprintf("❌ Error scheduling message: %v", err))
+		return s.errorResponse(fmt.Sprintf("%s Error scheduling message: %v", constants.EmojiError, err))
 	}
 	if strings.TrimSpace(text) == "" {
-		return s.errorResponse("Trying to schedule a message? Use `/schedule help` for instructions.")
+		helpCommand := fmt.Sprintf("/%s %s", constants.CommandTrigger, constants.SubcommandHelp)
+		return s.errorResponse(fmt.Sprintf(constants.EmptyScheduleMessage, helpCommand))
 	}
 	return nil
 }

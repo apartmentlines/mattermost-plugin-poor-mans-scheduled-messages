@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 )
 
 type dateFormat int
@@ -69,7 +71,7 @@ func parseScheduleInput(input string) (*ParsedSchedule, error) {
 	trimmedInput := strings.TrimSpace(input)
 	matches := regexFullCommand.FindStringSubmatch(trimmedInput)
 	if matches == nil {
-		return nil, errors.New("invalid format. Use: `at <time> [on <date>] message <your message text>`")
+		return nil, errors.New(constants.ParserErrInvalidFormat)
 	}
 	timeStr := strings.ToLower(strings.ReplaceAll(matches[1], " ", ""))
 	if len(timeStr) > 1 && timeStr[0] == '0' {
@@ -117,7 +119,7 @@ func resolveDateTimeNone(parsedTime time.Time, now time.Time, loc *time.Location
 }
 
 func resolveDateTimeYYYYMMDD(dateStr string, parsedTime time.Time, now time.Time, loc *time.Location) (time.Time, error) {
-	parsedDatePart, err := time.ParseInLocation("2006-01-02", dateStr, loc)
+	parsedDatePart, err := time.ParseInLocation(constants.DateParseLayoutYYYYMMDD, dateStr, loc)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("invalid date specified '%s': %w", dateStr, err)
 	}
@@ -180,8 +182,7 @@ func resolveDateTimeShortDayMonth(dateStr string, parsedTime time.Time, now time
 }
 
 func parseTimeStr(timeStr string, loc *time.Location) (time.Time, error) {
-	layouts := []string{"15:04", "3:04pm", "3:04PM", "3pm", "3PM"}
-	for _, layout := range layouts {
+	for _, layout := range constants.TimeParseLayouts {
 		parsedTime, err := time.ParseInLocation(layout, timeStr, loc)
 		if err == nil {
 			return parsedTime, nil
@@ -206,8 +207,8 @@ func resolveScheduledTime(timeStr string, dateStr string, now time.Time, loc *ti
 	case dateFormatShortDayMonth:
 		return resolveDateTimeShortDayMonth(dateStr, parsedTime, now, loc)
 	case dateFormatInvalid:
-		return time.Time{}, fmt.Errorf("invalid date format specified: '%s'. Use YYYY-MM-DD, day name (e.g., 'tuesday', 'fri'), or short date (e.g., '3jan', '25dec')", dateStr)
+		return time.Time{}, fmt.Errorf(constants.ParserErrInvalidDateFormat, dateStr)
 	default:
-		return time.Time{}, errors.New("unknown date format detected")
+		return time.Time{}, errors.New(constants.ParserErrUnknownDateFormat)
 	}
 }

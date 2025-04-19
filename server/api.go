@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -23,7 +24,7 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 
 func (p *Plugin) MattermostAuthorizationRequired(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userID := r.Header.Get("Mattermost-User-ID")
+		userID := r.Header.Get(constants.HTTPHeaderMattermostUserID)
 		if userID == "" {
 			http.Error(w, "Not authorized", http.StatusUnauthorized)
 			return
@@ -33,7 +34,7 @@ func (p *Plugin) MattermostAuthorizationRequired(next http.Handler) http.Handler
 }
 
 func (p *Plugin) UserDeleteMessage(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("Mattermost-User-ID")
+	userID := r.Header.Get(constants.HTTPHeaderMattermostUserID)
 	p.logger.Debug("Received request to delete message", "user_id", userID)
 	req, msgID, err := parseDeleteRequest(r)
 	if err != nil {
@@ -88,12 +89,12 @@ func (p *Plugin) sendDeletionConfirmation(userID string, channelID string, delet
 		p.logger.Warn("Failed to load timezone for confirmation", "timezone", deletedMsg.Timezone, "error", err)
 		loc = time.UTC
 	}
-	humanTime := deletedMsg.PostAt.In(loc).Format("Jan 2, 2006 3:04 PM")
+	humanTime := deletedMsg.PostAt.In(loc).Format(constants.TimeLayout)
 	channelInfo := p.Channel.MakeChannelLink(p.Channel.GetInfoOrUnknown(deletedMsg.ChannelID))
 	confirmation := &model.Post{
 		UserId:    userID,
 		ChannelId: channelID,
-		Message:   fmt.Sprintf("✅ Message scheduled for **%s** %s has been deleted.", humanTime, channelInfo),
+		Message:   fmt.Sprintf("%s Message scheduled for **%s** %s has been deleted.", constants.EmojiSuccess, humanTime, channelInfo),
 	}
 	p.poster.SendEphemeralPost(userID, confirmation)
 	p.logger.Debug("Sent deletion confirmation", "user_id", userID, "channel_id", channelID)

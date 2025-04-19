@@ -8,6 +8,7 @@ import (
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/adapters/mock"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/testutil"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 	"github.com/golang/mock/gomock"
 	"github.com/mattermost/mattermost/server/public/model"
 )
@@ -58,7 +59,7 @@ func TestGetInfo(t *testing.T) {
 			Times(1)
 
 		chData.EXPECT().
-			ListMembers(channelID, 0, 100).
+			ListMembers(channelID, constants.DefaultPage, constants.DefaultChannelMembersPerPage).
 			Return([]*model.ChannelMember{member1, member2}, nil).
 			Times(1)
 
@@ -131,7 +132,7 @@ func TestGetInfo(t *testing.T) {
 			Times(1)
 
 		chData.EXPECT().
-			ListMembers(channelID, 0, 100).
+			ListMembers(channelID, constants.DefaultPage, constants.DefaultChannelMembersPerPage).
 			Return([]*model.ChannelMember{member1, member2, member3}, nil).
 			Times(1)
 
@@ -163,7 +164,7 @@ func TestGetInfo(t *testing.T) {
 			Times(1)
 
 		chData.EXPECT().
-			ListMembers(channelID, 0, 100).
+			ListMembers(channelID, constants.DefaultPage, constants.DefaultChannelMembersPerPage).
 			Return(nil, errors.New("list err")).
 			Times(1)
 
@@ -188,7 +189,7 @@ func TestGetInfo(t *testing.T) {
 			Times(1)
 
 		chData.EXPECT().
-			ListMembers(channelID, 0, 100).
+			ListMembers(channelID, constants.DefaultPage, constants.DefaultChannelMembersPerPage).
 			Return([]*model.ChannelMember{member1}, nil).
 			Times(1)
 
@@ -307,7 +308,7 @@ func TestGetInfoOrUnknown(t *testing.T) {
 		chData.EXPECT().Get("bad").Return(nil, errors.New("boom")).Times(1)
 
 		got := ch.GetInfoOrUnknown("bad")
-		if got.ChannelID != "" || got.ChannelLink != "N/A" {
+		if got.ChannelID != "" || got.ChannelLink != constants.UnknownChannelPlaceholder {
 			t.Fatalf("expected UnknownChannel, got %#v", got)
 		}
 	})
@@ -318,7 +319,7 @@ func TestUnknownChannel(t *testing.T) {
 	defer ctrl.Finish()
 
 	uc := ch.UnknownChannel()
-	if uc.ChannelLink != "N/A" || uc.ChannelID != "" {
+	if uc.ChannelLink != constants.UnknownChannelPlaceholder || uc.ChannelID != "" {
 		t.Fatalf("unexpected unknown channel value: %#v", uc)
 	}
 }
@@ -334,8 +335,8 @@ func TestMakeChannelLink(t *testing.T) {
 	}{
 		{
 			name: "unknown",
-			info: &ports.ChannelInfo{ChannelLink: "N/A"},
-			want: "N/A",
+			info: &ports.ChannelInfo{ChannelLink: constants.UnknownChannelPlaceholder},
+			want: constants.UnknownChannelPlaceholder,
 		},
 		{
 			name: "direct",
