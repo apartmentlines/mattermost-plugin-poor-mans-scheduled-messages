@@ -104,8 +104,8 @@ func (s *kvStore) ListAllScheduledIDs() (map[string]int64, error) {
 	s.logger.Debug("Attempting to list all scheduled message IDs")
 	results := make(map[string]int64)
 	prefix := constants.SchedPrefix
-	s.logger.Debug("Calling KV ListKeys", "prefix", prefix, "page", 0, "perPage", s.maxUserMessages)
-	keys, err := s.kv.ListKeys(0, s.maxUserMessages, s.listMatchingService.WithPrefix(prefix))
+	s.logger.Debug("Calling KV ListKeys", "prefix", prefix, "page", constants.DefaultPage, "perPage", s.maxUserMessages)
+	keys, err := s.kv.ListKeys(constants.DefaultPage, s.maxUserMessages, s.listMatchingService.WithPrefix(prefix))
 	if err != nil {
 		s.logger.Error("Failed to list keys from KV store", "prefix", prefix, "error", err)
 		return nil, fmt.Errorf("kv.ListKeys failed for prefix %s: %w", prefix, err)
