@@ -182,6 +182,7 @@ func (s *ScheduleService) prepareSchedule(userID, channelID, text string) (*type
 	if locErr != nil {
 		s.logger.Warn("Failed to load timezone location, proceeding with UTC", "user_id", userID, "timezone", tz, "error", locErr)
 		loc, _ = time.LoadLocation(constants.DefaultTimezone)
+		tz = constants.DefaultTimezone
 	}
 
 	now := s.clock.Now().In(loc)
