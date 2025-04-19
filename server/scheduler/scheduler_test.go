@@ -41,7 +41,7 @@ func TestProcessDueMessages_PostSuccess(t *testing.T) {
 	msgKey := testutil.SchedKey(msg.ID)
 	userIndexKey := testutil.IndexKey(msg.UserID)
 
-	mockKV.EXPECT().ListKeys(0, constants.MaxUserMessages, gomock.Any()).Return([]string{msgKey}, nil)
+	mockKV.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.Any()).Return([]string{msgKey}, nil)
 	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msg).Return(nil).Times(2)
 	mockKV.EXPECT().Get(userIndexKey, gomock.Any()).SetArg(1, []string{msg.ID}).Return(nil)
 	mockKV.EXPECT().Set(userIndexKey, gomock.Eq([]string{})).Return(true, nil)
@@ -81,7 +81,7 @@ func TestProcessDueMessages_PostFailure(t *testing.T) {
 	postErr := errors.New("fail")
 	channelInfo := &ports.ChannelInfo{ChannelID: msg.ChannelID, ChannelLink: "some-link"}
 
-	mockKV.EXPECT().ListKeys(0, constants.MaxUserMessages, gomock.Any()).Return([]string{msgKey}, nil)
+	mockKV.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.Any()).Return([]string{msgKey}, nil)
 	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msg).Return(nil).Times(2)
 	mockKV.EXPECT().Get(userIndexKey, gomock.Any()).SetArg(1, []string{msg.ID}).Return(nil)
 	mockKV.EXPECT().Set(userIndexKey, gomock.Eq([]string{})).Return(true, nil)
@@ -117,7 +117,7 @@ func TestProcessDueMessages_NotDueYet(t *testing.T) {
 	}
 	msgKey := testutil.SchedKey(msg.ID)
 
-	mockKV.EXPECT().ListKeys(0, constants.MaxUserMessages, gomock.Any()).Return([]string{msgKey}, nil)
+	mockKV.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.Any()).Return([]string{msgKey}, nil)
 	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msg).Return(nil)
 
 	s.processDueMessages()
@@ -135,7 +135,7 @@ func TestProcessDueMessages_ListError(t *testing.T) {
 	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
 	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
 
-	mockKV.EXPECT().ListKeys(0, constants.MaxUserMessages, gomock.Any()).Return(nil, errors.New("boom"))
+	mockKV.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.Any()).Return(nil, errors.New("boom"))
 
 	s.processDueMessages()
 }
@@ -165,7 +165,7 @@ func TestScheduler_StartAndStop(t *testing.T) {
 	msgKey := testutil.SchedKey(msg.ID)
 	userIndexKey := testutil.IndexKey(msg.UserID)
 
-	mockKV.EXPECT().ListKeys(0, constants.MaxUserMessages, gomock.Any()).Return([]string{msgKey}, nil).MinTimes(1)
+	mockKV.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.Any()).Return([]string{msgKey}, nil).MinTimes(1)
 	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msg).Return(nil).MinTimes(2)
 	mockKV.EXPECT().Get(userIndexKey, gomock.Any()).SetArg(1, []string{msg.ID}).Return(nil).MinTimes(1)
 	mockKV.EXPECT().Set(userIndexKey, gomock.Eq([]string{})).Return(true, nil).MinTimes(1)
@@ -202,7 +202,7 @@ func TestProcessDueMessages_LoadMessageError(t *testing.T) {
 	msgForList := &types.ScheduledMessage{ID: msgID, PostAt: postAt}
 	msgKey := testutil.SchedKey(msgID)
 
-	mockKV.EXPECT().ListKeys(0, constants.MaxUserMessages, gomock.Any()).Return([]string{msgKey}, nil)
+	mockKV.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.Any()).Return([]string{msgKey}, nil)
 	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msgForList).Return(nil)
 	mockKV.EXPECT().Get(msgKey, gomock.Any()).Return(errors.New("cannot load"))
 
@@ -228,7 +228,7 @@ func TestProcessDueMessages_DeleteScheduleError(t *testing.T) {
 	}
 	msgKey := testutil.SchedKey(msg.ID)
 
-	mockKV.EXPECT().ListKeys(0, constants.MaxUserMessages, gomock.Any()).Return([]string{msgKey}, nil)
+	mockKV.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.Any()).Return([]string{msgKey}, nil)
 	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msg).Return(nil).Times(2)
 	mockKV.EXPECT().Delete(msgKey).Return(errors.New("kv fail"))
 
@@ -258,7 +258,7 @@ func TestProcessDueMessages_DMError(t *testing.T) {
 	dmErr := errors.New("dm fail")
 	channelInfo := &ports.ChannelInfo{ChannelID: msg.ChannelID, ChannelLink: "some-link"}
 
-	mockKV.EXPECT().ListKeys(0, constants.MaxUserMessages, gomock.Any()).Return([]string{msgKey}, nil)
+	mockKV.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.Any()).Return([]string{msgKey}, nil)
 	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msg).Return(nil).Times(2)
 	mockKV.EXPECT().Get(userIndexKey, gomock.Any()).SetArg(1, []string{msg.ID}).Return(nil)
 	mockKV.EXPECT().Set(userIndexKey, gomock.Eq([]string{})).Return(true, nil)
@@ -283,7 +283,7 @@ func TestProcessDueMessages_EmptyIDMap(t *testing.T) {
 	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
 	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
 
-	mockKV.EXPECT().ListKeys(0, constants.MaxUserMessages, gomock.Any()).Return([]string{}, nil)
+	mockKV.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.Any()).Return([]string{}, nil)
 
 	s.processDueMessages()
 }

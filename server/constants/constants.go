@@ -63,6 +63,7 @@ const (
 	// Pagination/Limits
 	DefaultPage                  = 0
 	DefaultChannelMembersPerPage = 100
+	MaxFetchScheduledMessages    = 10000
 )
 
 // TimeParseLayouts defines the acceptable formats for parsing time strings.

@@ -161,7 +161,7 @@ func TestListAllScheduledIDs_SkipBadKeys(t *testing.T) {
 	prefixOpt := pluginapi.WithPrefix(constants.SchedPrefix)
 	listFake.prefixCalled = ""
 
-	kvMock.EXPECT().ListKeys(0, constants.MaxUserMessages, gomock.AssignableToTypeOf(prefixOpt)).Return([]string{key1, key2}, nil)
+	kvMock.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.AssignableToTypeOf(prefixOpt)).Return([]string{key1, key2}, nil)
 
 	kvMock.EXPECT().Get(key1, gomock.Any()).Return(fmt.Errorf("corrupt"))
 	kvMock.EXPECT().Get(key2, gomock.Any()).DoAndReturn(
@@ -379,7 +379,7 @@ func TestListAllScheduledIDs_Happy(t *testing.T) {
 	msgID := uuid.NewString()
 	key := testutil.SchedKey(msgID)
 	prefixOpt := pluginapi.WithPrefix(constants.SchedPrefix)
-	kvMock.EXPECT().ListKeys(0, constants.MaxUserMessages, gomock.AssignableToTypeOf(prefixOpt)).Return([]string{key}, nil)
+	kvMock.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.AssignableToTypeOf(prefixOpt)).Return([]string{key}, nil)
 	kvMock.EXPECT().Get(key, gomock.Any()).DoAndReturn(
 		func(_ string, v any) error {
 			ptr := v.(*types.ScheduledMessage)
@@ -404,7 +404,7 @@ func TestListAllScheduledIDs_ListKeysError(t *testing.T) {
 	listFake := &fakeListMatching{}
 	store := NewKVStore(testutil.FakeLogger{}, kvMock, listFake, constants.MaxUserMessages)
 	prefixOpt := pluginapi.WithPrefix(constants.SchedPrefix)
-	kvMock.EXPECT().ListKeys(0, constants.MaxUserMessages, gomock.AssignableToTypeOf(prefixOpt)).Return(nil, fmt.Errorf("list error"))
+	kvMock.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.AssignableToTypeOf(prefixOpt)).Return(nil, fmt.Errorf("list error"))
 	_, err := store.ListAllScheduledIDs()
 	if err == nil {
 		t.Fatalf("expected error")

@@ -52,24 +52,25 @@ func (s *ScheduleService) Build(args *model.CommandArgs, text string) *model.Com
 	s.logger.Debug("Schedule request validated successfully", "user_id", args.UserId)
 
 	s.logger.Debug("Preparing schedule details", "user_id", args.UserId, "channel_id", args.ChannelId)
-	msg, tz, err := s.prepareSchedule(args.UserId, args.ChannelId, text)
+	msg, loc, tz, err := s.prepareSchedule(args.UserId, args.ChannelId, text)
 	if err != nil {
 		errMsg := fmt.Sprintf("Error preparing schedule: %v, Original input: `%v`", err, text)
 		s.logger.Error("Failed to prepare schedule", "user_id", args.UserId, "channel_id", args.ChannelId, "error", err, "original_text", text)
 		return s.errorResponse(errMsg)
 	}
-	s.logger.Debug("Schedule details prepared", "user_id", args.UserId, "message_id", msg.ID, "post_at", msg.PostAt, "timezone", tz)
+	localTime := msg.PostAt.In(loc)
+	s.logger.Debug("Schedule details prepared", "user_id", args.UserId, "message_id", msg.ID, "post_at", localTime, "timezone", tz)
 
 	s.logger.Debug("Persisting scheduled message", "user_id", args.UserId, "message_id", msg.ID)
 	if err := s.persist(args.UserId, msg); err != nil {
 		channelLink := s.channel.MakeChannelLink(s.channel.GetInfoOrUnknown(args.ChannelId))
-		formatted := formatter.FormatScheduleError(msg.PostAt, tz, channelLink, err)
+		formatted := formatter.FormatScheduleError(localTime, tz, channelLink, err)
 		s.logger.Error("Failed to persist scheduled message", "user_id", args.UserId, "message_id", msg.ID, "error", err)
 		return s.errorResponse(formatted)
 	}
 	s.logger.Info("Scheduled message persisted successfully", "user_id", args.UserId, "message_id", msg.ID)
 
-	return s.successResponse(msg, tz, args.ChannelId)
+	return s.successResponse(msg, localTime, tz, args.ChannelId)
 }
 
 func (s *ScheduleService) checkMaxUserMessages(userID string) error {
@@ -165,14 +166,14 @@ func (s *ScheduleService) errorResponse(text string) *model.CommandResponse {
 	}
 }
 
-func (s *ScheduleService) prepareSchedule(userID, channelID, text string) (*types.ScheduledMessage, string, error) {
+func (s *ScheduleService) prepareSchedule(userID, channelID, text string) (*types.ScheduledMessage, *time.Location, string, error) {
 	s.logger.Debug("Preparing schedule", "user_id", userID, "channel_id", channelID)
 
 	s.logger.Debug("Parsing schedule input text", "user_id", userID, "text", text)
 	parsed, parseErr := parseScheduleInput(text)
 	if parseErr != nil {
 		s.logger.Error("Failed to parse schedule input", "user_id", userID, "text", text, "error", parseErr)
-		return nil, "", fmt.Errorf("failed to parse input: %w", parseErr)
+		return nil, nil, "", fmt.Errorf("failed to parse input: %w", parseErr)
 	}
 	s.logger.Debug("Parsed schedule input", "user_id", userID, "parsed_time", parsed.TimeStr, "parsed_date", parsed.DateStr, "message", parsed.Message)
 
@@ -181,6 +182,7 @@ func (s *ScheduleService) prepareSchedule(userID, channelID, text string) (*type
 	loc, locErr := time.LoadLocation(tz)
 	if locErr != nil {
 		s.logger.Warn("Failed to load timezone location, proceeding with UTC", "user_id", userID, "timezone", tz, "error", locErr)
+		loc, _ = time.LoadLocation(constants.DefaultTimezone)
 	}
 
 	now := s.clock.Now().In(loc)
@@ -188,7 +190,7 @@ func (s *ScheduleService) prepareSchedule(userID, channelID, text string) (*type
 	schedTime, resolveErr := resolveScheduledTime(parsed.TimeStr, parsed.DateStr, now, loc)
 	if resolveErr != nil {
 		s.logger.Error("Failed to resolve scheduled time", "user_id", userID, "parsed_time", parsed.TimeStr, "parsed_date", parsed.DateStr, "error", resolveErr)
-		return nil, "", fmt.Errorf("failed to resolve time: %w", resolveErr)
+		return nil, nil, "", fmt.Errorf("failed to resolve time: %w", resolveErr)
 	}
 	s.logger.Debug("Resolved scheduled time", "user_id", userID, "scheduled_time_local", schedTime, "scheduled_time_utc", schedTime.UTC())
 
@@ -202,13 +204,13 @@ func (s *ScheduleService) prepareSchedule(userID, channelID, text string) (*type
 		Timezone:       tz,
 	}
 	s.logger.Debug("Prepared scheduled message object", "user_id", userID, "message_id", msg.ID, "channel_id", msg.ChannelID, "post_at_utc", msg.PostAt, "timezone", msg.Timezone)
-	return msg, tz, nil
+	return msg, loc, tz, nil
 }
 
-func (s *ScheduleService) successResponse(msg *types.ScheduledMessage, tz, channelID string) *model.CommandResponse {
+func (s *ScheduleService) successResponse(msg *types.ScheduledMessage, localTime time.Time, tz, channelID string) *model.CommandResponse {
 	s.logger.Debug("Formatting success response", "user_id", msg.UserID, "message_id", msg.ID, "channel_id", channelID, "timezone", tz)
 	channelLink := s.channel.MakeChannelLink(s.channel.GetInfoOrUnknown(channelID))
-	text := formatter.FormatScheduleSuccess(msg.PostAt, tz, channelLink)
+	text := formatter.FormatScheduleSuccess(localTime, tz, channelLink)
 	s.logger.Debug("Formatted success response text", "user_id", msg.UserID, "message_id", msg.ID, "response_text", text)
 	return &model.CommandResponse{
 		ResponseType: model.CommandResponseTypeEphemeral,
