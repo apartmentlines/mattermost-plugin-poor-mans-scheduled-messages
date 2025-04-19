@@ -158,7 +158,7 @@ func TestListAllScheduledIDs_SkipBadKeys(t *testing.T) {
 	key1 := testutil.SchedKey(msgID1)
 	key2 := testutil.SchedKey(msgID2)
 
-	prefixOpt := pluginapi.WithPrefix("schedmsg:")
+	prefixOpt := pluginapi.WithPrefix(constants.SchedPrefix)
 	listFake.prefixCalled = ""
 
 	kvMock.EXPECT().ListKeys(0, constants.MaxUserMessages, gomock.AssignableToTypeOf(prefixOpt)).Return([]string{key1, key2}, nil)
@@ -182,7 +182,7 @@ func TestListAllScheduledIDs_SkipBadKeys(t *testing.T) {
 		t.Fatalf("mismatch: expected %v got %v", want, got)
 	}
 
-	if listFake.prefixCalled != "schedmsg:" {
+	if listFake.prefixCalled != constants.SchedPrefix {
 		t.Fatalf("prefix mismatch: %s", listFake.prefixCalled)
 	}
 }
@@ -378,7 +378,7 @@ func TestListAllScheduledIDs_Happy(t *testing.T) {
 	store := NewKVStore(testutil.FakeLogger{}, kvMock, listFake, constants.MaxUserMessages)
 	msgID := uuid.NewString()
 	key := testutil.SchedKey(msgID)
-	prefixOpt := pluginapi.WithPrefix("schedmsg:")
+	prefixOpt := pluginapi.WithPrefix(constants.SchedPrefix)
 	kvMock.EXPECT().ListKeys(0, constants.MaxUserMessages, gomock.AssignableToTypeOf(prefixOpt)).Return([]string{key}, nil)
 	kvMock.EXPECT().Get(key, gomock.Any()).DoAndReturn(
 		func(_ string, v any) error {
@@ -403,7 +403,7 @@ func TestListAllScheduledIDs_ListKeysError(t *testing.T) {
 	kvMock := mock.NewMockKVService(ctrl)
 	listFake := &fakeListMatching{}
 	store := NewKVStore(testutil.FakeLogger{}, kvMock, listFake, constants.MaxUserMessages)
-	prefixOpt := pluginapi.WithPrefix("schedmsg:")
+	prefixOpt := pluginapi.WithPrefix(constants.SchedPrefix)
 	kvMock.EXPECT().ListKeys(0, constants.MaxUserMessages, gomock.AssignableToTypeOf(prefixOpt)).Return(nil, fmt.Errorf("list error"))
 	_, err := store.ListAllScheduledIDs()
 	if err == nil {

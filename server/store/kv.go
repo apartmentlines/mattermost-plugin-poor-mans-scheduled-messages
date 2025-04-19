@@ -75,7 +75,7 @@ func (s *kvStore) GetScheduledMessage(msgID string) (*types.ScheduledMessage, er
 
 func (s *kvStore) ListAllScheduledIDs() (map[string]int64, error) {
 	results := make(map[string]int64)
-	keys, err := s.kv.ListKeys(0, s.maxUserMessages, s.listMatchingService.WithPrefix("schedmsg:"))
+	keys, err := s.kv.ListKeys(0, s.maxUserMessages, s.listMatchingService.WithPrefix(constants.SchedPrefix))
 	if err != nil {
 		return nil, err
 	}
