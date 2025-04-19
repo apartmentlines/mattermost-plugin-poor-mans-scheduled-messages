@@ -18,8 +18,8 @@ type Handler struct {
 	store           ports.Store
 	scheduler       *scheduler.Scheduler
 	channel         ports.ChannelService
-	listService     *ListService
-	scheduleService *ScheduleService
+	listService     ports.ListService
+	scheduleService ports.ScheduleService
 	helpText        string
 }
 
@@ -30,8 +30,8 @@ func NewHandler(
 	store ports.Store,
 	sched *scheduler.Scheduler,
 	channel ports.ChannelService,
-	maxUserMessages int,
-	clk ports.Clock,
+	listSvc ports.ListService,
+	scheduleSvc ports.ScheduleService,
 	helpText string,
 ) *Handler {
 	logger.Debug("Creating new command Handler")
@@ -42,8 +42,8 @@ func NewHandler(
 		store:           store,
 		scheduler:       sched,
 		channel:         channel,
-		listService:     NewListService(logger, store, channel),
-		scheduleService: NewScheduleService(logger, user, store, channel, clk, maxUserMessages),
+		listService:     listSvc,
+		scheduleService: scheduleSvc,
 		helpText:        helpText,
 	}
 }

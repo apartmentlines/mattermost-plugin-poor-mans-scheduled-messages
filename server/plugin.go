@@ -30,7 +30,15 @@ type AppBuilder interface {
 	NewChannel(cli *pluginapi.Client) *channel.Channel
 	NewStore(cli *pluginapi.Client, maxUserMessages int) ports.Store
 	NewScheduler(cli *pluginapi.Client, st ports.Store, ch ports.ChannelService, botID string, clk ports.Clock) *scheduler.Scheduler
-	NewCommandHandler(cli *pluginapi.Client, st ports.Store, sched *scheduler.Scheduler, ch ports.ChannelService, maxUserMessages int, clk ports.Clock, help string) *command.Handler
+	NewCommandHandler(
+		cli *pluginapi.Client,
+		st ports.Store,
+		sched *scheduler.Scheduler,
+		ch ports.ChannelService,
+		listSvc ports.ListService,
+		scheduleSvc ports.ScheduleService,
+		help string,
+	) *command.Handler
 }
 
 type prodBuilder struct{}
@@ -47,8 +55,26 @@ func (prodBuilder) NewScheduler(cli *pluginapi.Client, st ports.Store, ch ports.
 	return scheduler.New(&cli.Log, &cli.Post, st, ch, botID, clk)
 }
 
-func (prodBuilder) NewCommandHandler(cli *pluginapi.Client, st ports.Store, sched *scheduler.Scheduler, ch ports.ChannelService, maxUserMessages int, clk ports.Clock, help string) *command.Handler {
-	return command.NewHandler(&cli.Log, &cli.SlashCommand, &cli.User, st, sched, ch, maxUserMessages, clk, help)
+func (prodBuilder) NewCommandHandler(
+	cli *pluginapi.Client,
+	st ports.Store,
+	sched *scheduler.Scheduler,
+	ch ports.ChannelService,
+	listSvc ports.ListService,
+	scheduleSvc ports.ScheduleService,
+	help string,
+) *command.Handler {
+	return command.NewHandler(
+		&cli.Log,
+		&cli.SlashCommand,
+		&cli.User,
+		st,
+		sched,
+		ch,
+		listSvc,
+		scheduleSvc,
+		help,
+	)
 }
 
 type Plugin struct {
@@ -173,8 +199,23 @@ func (p *Plugin) initialize(botID string, clk ports.Clock, builder AppBuilder) e
 	p.Store = builder.NewStore(p.client, p.defaultMaxUserMessages)
 	p.logger.Debug("Initializing Scheduler service", "bot_id", p.BotID)
 	p.Scheduler = builder.NewScheduler(p.client, p.Store, p.Channel, p.BotID, clk)
-	p.logger.Debug("Initializing Command handler", "max_user_messages", p.defaultMaxUserMessages)
-	p.Command = builder.NewCommandHandler(p.client, p.Store, p.Scheduler, p.Channel, p.defaultMaxUserMessages, clk, p.helpText)
+
+	p.logger.Debug("Initializing List service")
+	listService := command.NewListService(p.logger, p.Store, p.Channel)
+
+	p.logger.Debug("Initializing Schedule service", "max_user_messages", p.defaultMaxUserMessages)
+	scheduleService := command.NewScheduleService(p.logger, &p.client.User, p.Store, p.Channel, clk, p.defaultMaxUserMessages)
+
+	p.logger.Debug("Initializing Command handler")
+	p.Command = builder.NewCommandHandler(
+		p.client,
+		p.Store,
+		p.Scheduler,
+		p.Channel,
+		listService,
+		scheduleService,
+		p.helpText,
+	)
 
 	p.logger.Debug("Registering command handler")
 	if err := p.Command.Register(); err != nil {

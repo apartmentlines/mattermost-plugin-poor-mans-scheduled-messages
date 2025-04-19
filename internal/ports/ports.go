@@ -80,3 +80,11 @@ type Store interface {
 	ListUserMessageIDs(userID string) ([]string, error)
 	GenerateMessageID() string
 }
+
+type ListService interface {
+	Build(userID string) *model.CommandResponse
+}
+
+type ScheduleService interface {
+	Build(args *model.CommandArgs, text string) *model.CommandResponse
+}
