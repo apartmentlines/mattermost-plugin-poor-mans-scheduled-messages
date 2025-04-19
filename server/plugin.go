@@ -137,7 +137,6 @@ func (p *Plugin) OnActivateWith(
 	clk := clockFactory()
 	p.API.LogDebug("Clock created")
 
-	p.API.LogDebug("Initializing plugin components", "bot_id", botID)
 	if initErr := p.initialize(botID, clk, builder); initErr != nil {
 		p.API.LogError("Plugin activation failed: could not initialize dependencies.", "error", initErr.Error())
 		return initErr

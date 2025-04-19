@@ -30,6 +30,7 @@ func NewScheduleService(
 	clk ports.Clock,
 	maxUserMessages int,
 ) *ScheduleService {
+	logger.Debug("Creating new ScheduleService")
 	return &ScheduleService{
 		logger:          logger,
 		userAPI:         userAPI,
