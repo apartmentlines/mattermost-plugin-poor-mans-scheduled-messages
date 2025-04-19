@@ -81,6 +81,11 @@ type Store interface {
 	GenerateMessageID() string
 }
 
+type Scheduler interface {
+	Start()
+	Stop()
+}
+
 type ListService interface {
 	Build(userID string) *model.CommandResponse
 }
