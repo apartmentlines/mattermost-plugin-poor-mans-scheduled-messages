@@ -11,6 +11,15 @@ func FormatScheduleSuccess(postAt time.Time, tz, channelLink string) string {
 	return fmt.Sprintf("%s Scheduled message for %s (%s) %s", constants.EmojiSuccess, postAt.Format(constants.TimeLayout), tz, channelLink)
 }
 
+func FormatEmptyCommandError() string {
+	helpCommand := fmt.Sprintf("/%s %s", constants.CommandTrigger, constants.SubcommandHelp)
+	return fmt.Sprintf(constants.EmptyScheduleMessage, helpCommand)
+}
+
+func FormatScheduleValidationError(err error) string {
+	return fmt.Sprintf("%s Error scheduling message: %v", constants.EmojiError, err)
+}
+
 func FormatScheduleError(postAt time.Time, tz, channelLink string, err error) string {
 	return fmt.Sprintf("%s Error scheduling message for %s (%s) %s:  %v", constants.EmojiError, postAt.Format(constants.TimeLayout), tz, channelLink, err)
 }

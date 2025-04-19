@@ -22,6 +22,26 @@ func TestFormatScheduleSuccess(t *testing.T) {
 	}
 }
 
+func TestFormatEmptyCommandError(t *testing.T) {
+	helpCommand := fmt.Sprintf("/%s %s", constants.CommandTrigger, constants.SubcommandHelp)
+	expected := fmt.Sprintf(constants.EmptyScheduleMessage, helpCommand)
+
+	got := FormatEmptyCommandError()
+	if got != expected {
+		t.Fatalf("FormatEmptyCommandError() = %q, want %q", got, expected)
+	}
+}
+
+func TestFormatScheduleValidationError(t *testing.T) {
+	errVal := errors.New("validation failure")
+	expected := fmt.Sprintf("%s Error scheduling message: %v", constants.EmojiError, errVal)
+
+	got := FormatScheduleValidationError(errVal)
+	if got != expected {
+		t.Fatalf("FormatScheduleValidationError() = %q, want %q", got, expected)
+	}
+}
+
 func TestFormatScheduleError(t *testing.T) {
 	ts := time.Date(2025, time.January, 2, 15, 4, 0, 0, time.UTC)
 	tz := "UTC"
