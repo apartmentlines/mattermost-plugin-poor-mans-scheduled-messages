@@ -68,6 +68,14 @@ func (s *ScheduleService) checkMaxUserMessages(userID string) error {
 	return nil
 }
 
+func (s *ScheduleService) checkMaxMessageBytes(text string) error {
+	if len(text) > constants.MaxMessageBytes {
+		kb := float64(constants.MaxMessageBytes) / 1024
+		return fmt.Errorf("you cannot schedule a message longer than %v", fmt.Sprintf("%.2f KB", kb))
+	}
+	return nil
+}
+
 func (s *ScheduleService) getUserTimezone(userID string) string {
 	user, err := s.userAPI.Get(userID)
 	if err != nil {
@@ -86,12 +94,14 @@ func (s *ScheduleService) getUserTimezone(userID string) string {
 }
 
 func (s *ScheduleService) validateRequest(userID, text string) *model.CommandResponse {
-	if err := s.checkMaxUserMessages(userID); err != nil {
-		return s.errorResponse(fmt.Sprintf("%s Error scheduling message: %v", constants.EmojiError, err))
+	if maxUserMessagesErr := s.checkMaxUserMessages(userID); maxUserMessagesErr != nil {
+		return s.errorResponse(formatter.FormatScheduleValidationError(maxUserMessagesErr))
+	}
+	if maxMessageBytesErr := s.checkMaxMessageBytes(text); maxMessageBytesErr != nil {
+		return s.errorResponse(formatter.FormatScheduleValidationError(maxMessageBytesErr))
 	}
 	if strings.TrimSpace(text) == "" {
-		helpCommand := fmt.Sprintf("/%s %s", constants.CommandTrigger, constants.SubcommandHelp)
-		return s.errorResponse(fmt.Sprintf(constants.EmptyScheduleMessage, helpCommand))
+		return s.errorResponse(formatter.FormatEmptyCommandError())
 	}
 	return nil
 }

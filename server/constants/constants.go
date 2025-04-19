@@ -7,6 +7,8 @@ const (
 	UserIndexPrefix = "user_sched_index:"
 	// MaxUserMessages is a common limit used in tests involving user message counts.
 	MaxUserMessages = 1000
+	// MaxMessageBytes the maximium length a single message can be.
+	MaxMessageBytes = 50 * 1024
 	AssetsDir       = "assets"
 
 	// Bot Configuration
