@@ -81,7 +81,7 @@ func (h *Handler) UserDeleteMessage(userID string, msgID string) (*types.Schedul
 	msg, err := h.store.GetScheduledMessage(msgID)
 	if err != nil {
 		h.logger.Error("Failed to get scheduled message for deletion", "message_id", msgID, "error", err)
-		return nil, fmt.Errorf("failed to get scheduled message: %w", err)
+		return nil, err
 	}
 	if msg.UserID != userID {
 		h.logger.Warn("User attempted to delete message owned by another user", "requesting_user_id", userID, "message_id", msgID, "owner_user_id", msg.UserID)

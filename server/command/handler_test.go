@@ -224,7 +224,7 @@ func TestUserDeleteMessage_Failure_GetScheduledMessageFails(t *testing.T) {
 	userID := "testUserID"
 	msgID := "testMsgID"
 	getErr := errors.New("get failed")
-	expectedErr := fmt.Errorf("failed to get scheduled message: %w", getErr)
+	expectedErr := fmt.Errorf("%w", getErr)
 
 	mocks.store.EXPECT().GetScheduledMessage(msgID).Return(nil, getErr)
 
