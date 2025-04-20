@@ -318,6 +318,16 @@ ifneq ($(HAS_WEBAPP),)
 	cd webapp && $(NPM) run test;
 endif
 
+## Runs tests verbosely, showing output for each test.
+.PHONY: vtest
+vtest: apply webapp/node_modules install-go-tools
+ifneq ($(HAS_SERVER),)
+	$(GO) list ./... | grep -vE 'adapters|internal|build/manifest' | xargs $(GOBIN)/gotestsum --format testname -- -v
+endif
+ifneq ($(HAS_WEBAPP),)
+	cd webapp && $(NPM) run test;
+endif
+
 ## Runs any lints and unit tests defined for the server and webapp, if they exist, optimized
 ## for a CI environment.
 .PHONY: test-ci
