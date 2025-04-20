@@ -219,16 +219,26 @@ func TestServeHTTP_Delete_CommandLayerFailure(t *testing.T) { // TC-3.4
 	defer ctrl.Finish()
 	p, postMock, _, cmdMock := setupPluginForAPI(t, ctrl)
 
-	cmdMock.UserDeleteMessageFunc = func(userID, msgID string) (*types.ScheduledMessage, error) {
-		assert.Equal(t, "u1", userID)
-		assert.Equal(t, "msg999", msgID)
-		return nil, errors.New("command layer boom")
-	}
-	// Ensure poster methods are NOT called
-	postMock.EXPECT().UpdateEphemeralPost(gomock.Any(), gomock.Any()).Times(0)
-	postMock.EXPECT().SendEphemeralPost(gomock.Any(), gomock.Any()).Times(0)
+	userID := "u1"
+	msgID := "msg999"
+	channelID := "chanABC"
+	commandErrorMessage := "command layer boom"
 
-	req := createDeleteRequest(t, "u1", "ephemeral123", "chanABC", "delete", "msg999")
+	cmdMock.UserDeleteMessageFunc = func(userID, msgID string) (*types.ScheduledMessage, error) {
+		assert.Equal(t, userID, userID)
+		assert.Equal(t, msgID, msgID)
+		return nil, errors.New(commandErrorMessage)
+	}
+
+	postMock.EXPECT().UpdateEphemeralPost(gomock.Any(), gomock.Any()).Times(0)
+	postMock.EXPECT().SendEphemeralPost(userID, gomock.Any()).Do(func(_ string, post *model.Post) {
+		assert.Equal(t, userID, post.UserId)
+		assert.Equal(t, channelID, post.ChannelId)
+		expectedMsg := fmt.Sprintf("%s Could not delete message: %v", constants.EmojiError, commandErrorMessage)
+		assert.Equal(t, expectedMsg, post.Message)
+	})
+
+	req := createDeleteRequest(t, "u1", "ephemeral123", channelID, "delete", msgID)
 	rr := httptest.NewRecorder()
 
 	p.ServeHTTP(nil, rr, req)

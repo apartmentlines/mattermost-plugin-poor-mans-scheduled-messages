@@ -1,6 +1,7 @@
 package store
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 
@@ -85,6 +86,10 @@ func (s *kvStore) GetScheduledMessage(msgID string) (*types.ScheduledMessage, er
 	if err != nil {
 		s.logger.Error("Failed to get scheduled message from KV store", "key", key, "error", err)
 		return nil, fmt.Errorf("kv.Get failed for key %s: %w", key, err)
+	}
+	if msg.ID == "" {
+		s.logger.Debug("message not found (possibly already sent)", "message_id", msgID, "key", key)
+		return nil, errors.New("message not found (possibly already sent)")
 	}
 	s.logger.Debug("Successfully retrieved scheduled message", "message_id", msgID, "key", key)
 	return &msg, nil

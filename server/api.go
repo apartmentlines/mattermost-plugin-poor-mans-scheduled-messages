@@ -55,6 +55,7 @@ func (p *Plugin) UserDeleteMessage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		p.logger.Error("Command layer failed to delete message", "user_id", userID, "message_id", msgID, "error", err)
 		http.Error(w, fmt.Sprintf("Failed to delete message: %v", err), http.StatusInternalServerError)
+		p.sendDeletionError(userID, req.ChannelId, msgID, err)
 		return
 	}
 	p.logger.Info("Successfully deleted message via command layer", "user_id", userID, "message_id", msgID)
@@ -125,4 +126,16 @@ func (p *Plugin) sendDeletionConfirmation(userID string, channelID string, delet
 	p.logger.Debug("Sending ephemeral deletion confirmation post", "user_id", userID, "channel_id", channelID, "message_id", deletedMsg.ID)
 	p.poster.SendEphemeralPost(userID, confirmation)
 	p.logger.Debug("Successfully sent ephemeral deletion confirmation", "user_id", userID, "channel_id", channelID, "message_id", deletedMsg.ID)
+}
+
+func (p *Plugin) sendDeletionError(userID string, channelID string, msgID string, err error) {
+	p.logger.Debug("Preparing deletion error message", "user_id", userID, "channel_id", channelID, "message_id", msgID, "error", err)
+	alert := &model.Post{
+		UserId:    userID,
+		ChannelId: channelID,
+		Message:   fmt.Sprintf("%s Could not delete message: %v", constants.EmojiError, err),
+	}
+	p.logger.Debug("Sending ephemeral deletion confirmation post", "user_id", userID, "channel_id", channelID, "message_id", msgID)
+	p.poster.SendEphemeralPost(userID, alert)
+	p.logger.Debug("Successfully sent ephemeral deletion confirmation", "user_id", userID, "channel_id", channelID, "message_id", msgID)
 }
