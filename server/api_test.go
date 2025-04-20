@@ -220,8 +220,10 @@ func TestServeHTTP_Delete_CommandLayerFailure(t *testing.T) { // TC-3.4
 	p, postMock, _, cmdMock := setupPluginForAPI(t, ctrl)
 
 	userID := "u1"
+	postID := "post456"
 	msgID := "msg999"
 	channelID := "chanABC"
+	expectedAttachments := []any{"att1"}
 	commandErrorMessage := "command layer boom"
 
 	cmdMock.UserDeleteMessageFunc = func(userID, msgID string) (*types.ScheduledMessage, error) {
@@ -229,8 +231,17 @@ func TestServeHTTP_Delete_CommandLayerFailure(t *testing.T) { // TC-3.4
 		assert.Equal(t, msgID, msgID)
 		return nil, errors.New(commandErrorMessage)
 	}
+	cmdMock.BuildEphemeralListFunc = func(args *model.CommandArgs) *model.CommandResponse {
+		assert.Equal(t, userID, args.UserId)
+		return &model.CommandResponse{Props: map[string]any{"attachments": expectedAttachments}}
+	}
 
-	postMock.EXPECT().UpdateEphemeralPost(gomock.Any(), gomock.Any()).Times(0)
+	postMock.EXPECT().UpdateEphemeralPost(userID, gomock.Any()).Do(func(_ string, post *model.Post) {
+		assert.Equal(t, postID, post.Id)
+		assert.Equal(t, userID, post.UserId)
+		assert.Equal(t, channelID, post.ChannelId)
+		assert.Equal(t, expectedAttachments, post.Props["attachments"])
+	})
 	postMock.EXPECT().SendEphemeralPost(userID, gomock.Any()).Do(func(_ string, post *model.Post) {
 		assert.Equal(t, userID, post.UserId)
 		assert.Equal(t, channelID, post.ChannelId)
@@ -238,7 +249,7 @@ func TestServeHTTP_Delete_CommandLayerFailure(t *testing.T) { // TC-3.4
 		assert.Equal(t, expectedMsg, post.Message)
 	})
 
-	req := createDeleteRequest(t, "u1", "ephemeral123", channelID, "delete", msgID)
+	req := createDeleteRequest(t, "u1", postID, channelID, "delete", msgID)
 	rr := httptest.NewRecorder()
 
 	p.ServeHTTP(nil, rr, req)

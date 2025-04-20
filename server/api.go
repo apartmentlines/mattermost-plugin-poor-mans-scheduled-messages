@@ -52,6 +52,12 @@ func (p *Plugin) UserDeleteMessage(w http.ResponseWriter, r *http.Request) {
 
 	p.logger.Debug("Calling command layer UserDeleteMessage", "user_id", userID, "message_id", msgID)
 	deletedMsg, err := p.Command.UserDeleteMessage(userID, msgID)
+	args := &model.CommandArgs{
+		UserId: userID,
+	}
+	p.logger.Debug("Building updated ephemeral list", "user_id", userID)
+	updatedList := p.Command.BuildEphemeralList(args)
+	p.updateEphemeralPostWithList(userID, req.PostId, req.ChannelId, updatedList)
 	if err != nil {
 		p.logger.Error("Command layer failed to delete message", "user_id", userID, "message_id", msgID, "error", err)
 		http.Error(w, fmt.Sprintf("Failed to delete message: %v", err), http.StatusInternalServerError)
@@ -59,14 +65,6 @@ func (p *Plugin) UserDeleteMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p.logger.Info("Successfully deleted message via command layer", "user_id", userID, "message_id", msgID)
-
-	args := &model.CommandArgs{
-		UserId: userID,
-	}
-	p.logger.Debug("Building updated ephemeral list", "user_id", userID)
-	updatedList := p.Command.BuildEphemeralList(args)
-
-	p.updateEphemeralPostWithList(userID, req.PostId, req.ChannelId, updatedList)
 	p.sendDeletionConfirmation(userID, req.ChannelId, deletedMsg)
 
 	p.logger.Debug("UserDeleteMessage request completed successfully", "user_id", userID, "message_id", msgID)
@@ -103,6 +101,11 @@ func (p *Plugin) updateEphemeralPostWithList(userID string, postID string, chann
 		Props: map[string]any{
 			"attachments": updatedList.Props["attachments"],
 		},
+	}
+	attachmentsValue := updatedList.Props["attachments"]
+	attachmentsSlice, ok := attachmentsValue.([]*model.SlackAttachment)
+	if !ok || len(attachmentsSlice) == 0 {
+		updatedPost.Message = constants.EmptyListMessage
 	}
 	p.poster.UpdateEphemeralPost(userID, updatedPost)
 	p.logger.Debug("Successfully requested ephemeral post update", "user_id", userID, "post_id", postID, "channel_id", channelID)
