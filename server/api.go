@@ -70,6 +70,24 @@ func (p *Plugin) UserDeleteMessage(w http.ResponseWriter, r *http.Request) {
 	p.logger.Debug("UserDeleteMessage request completed successfully", "user_id", userID, "message_id", msgID)
 }
 
+func (p *Plugin) buildEphemeralListUpdate(userID, postID, channelID string, updatedList *model.CommandResponse) *model.Post {
+	p.logger.Debug("Building ephemeral post update structure", "user_id", userID, "post_id", postID, "channel_id", channelID)
+	post := &model.Post{
+		Id:        postID,
+		UserId:    userID,
+		ChannelId: channelID,
+		Props: map[string]any{
+			"attachments": updatedList.Props["attachments"],
+		},
+	}
+	attachmentsSlice := updatedList.Props["attachments"].([]*model.SlackAttachment)
+	if len(attachmentsSlice) == 0 {
+		p.logger.Debug("Attachments slice is empty, setting EmptyListMessage", "user_id", userID, "post_id", postID)
+		post.Message = constants.EmptyListMessage
+	}
+	return post
+}
+
 func parseDeleteRequest(p *Plugin, r *http.Request) (*model.PostActionIntegrationRequest, string, error) {
 	p.logger.Debug("Decoding JSON body for delete request")
 	var req model.PostActionIntegrationRequest
@@ -94,19 +112,7 @@ func parseDeleteRequest(p *Plugin, r *http.Request) (*model.PostActionIntegratio
 
 func (p *Plugin) updateEphemeralPostWithList(userID string, postID string, channelID string, updatedList *model.CommandResponse) {
 	p.logger.Debug("Preparing to update ephemeral post with new list", "user_id", userID, "post_id", postID, "channel_id", channelID)
-	updatedPost := &model.Post{
-		Id:        postID,
-		UserId:    userID,
-		ChannelId: channelID,
-		Props: map[string]any{
-			"attachments": updatedList.Props["attachments"],
-		},
-	}
-	attachmentsValue := updatedList.Props["attachments"]
-	attachmentsSlice, ok := attachmentsValue.([]*model.SlackAttachment)
-	if !ok || len(attachmentsSlice) == 0 {
-		updatedPost.Message = constants.EmptyListMessage
-	}
+	updatedPost := p.buildEphemeralListUpdate(userID, postID, channelID, updatedList)
 	p.poster.UpdateEphemeralPost(userID, updatedPost)
 	p.logger.Debug("Successfully requested ephemeral post update", "user_id", userID, "post_id", postID, "channel_id", channelID)
 }

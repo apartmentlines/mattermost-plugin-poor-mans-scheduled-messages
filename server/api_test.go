@@ -22,6 +22,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var expectedAttachments = []*model.SlackAttachment{{Text: "dummy attachment data"}}
+
 type mockCommand struct {
 	UserDeleteMessageFunc  func(userID, msgID string) (*types.ScheduledMessage, error)
 	BuildEphemeralListFunc func(args *model.CommandArgs) *model.CommandResponse
@@ -223,7 +225,6 @@ func TestServeHTTP_Delete_CommandLayerFailure(t *testing.T) { // TC-3.4
 	postID := "post456"
 	msgID := "msg999"
 	channelID := "chanABC"
-	expectedAttachments := []any{"att1"}
 	commandErrorMessage := "command layer boom"
 
 	cmdMock.UserDeleteMessageFunc = func(userID, msgID string) (*types.ScheduledMessage, error) {
@@ -271,7 +272,6 @@ func TestServeHTTP_Delete_HappyPath_NormalTimezone(t *testing.T) { // TC-3.5
 	expectedTime := time.Date(2025, 1, 2, 15, 4, 0, 0, time.UTC)
 	expectedTimezone := "UTC"
 	expectedChannelLink := "~town-square"
-	expectedAttachments := []any{"att1"}
 
 	// Command Mock Setup
 	cmdMock.UserDeleteMessageFunc = func(u, id string) (*types.ScheduledMessage, error) {
@@ -347,7 +347,7 @@ func TestServeHTTP_Delete_HappyPath_InvalidTimezoneFallback(t *testing.T) { // T
 		}, nil
 	}
 	cmdMock.BuildEphemeralListFunc = func(args *model.CommandArgs) *model.CommandResponse {
-		return &model.CommandResponse{Props: map[string]any{"attachments": []any{"att1"}}}
+		return &model.CommandResponse{Props: map[string]any{"attachments": expectedAttachments}}
 	}
 
 	// Channel Mock Setup
@@ -380,16 +380,15 @@ func TestUpdateEphemeralPostWithList(t *testing.T) { // TC-4.1
 	userID := "user123"
 	postID := "post456"
 	channelID := "chan789"
-	attachments := []any{"attachment_data"}
 	updatedList := &model.CommandResponse{
-		Props: map[string]any{"attachments": attachments},
+		Props: map[string]any{"attachments": expectedAttachments},
 	}
 
 	postMock.EXPECT().UpdateEphemeralPost(userID, gomock.Any()).Do(func(_ string, post *model.Post) {
 		assert.Equal(t, postID, post.Id)
 		assert.Equal(t, userID, post.UserId)
 		assert.Equal(t, channelID, post.ChannelId)
-		assert.Equal(t, attachments, post.Props["attachments"])
+		assert.Equal(t, expectedAttachments, post.Props["attachments"])
 	})
 
 	p.updateEphemeralPostWithList(userID, postID, channelID, updatedList)
@@ -427,6 +426,46 @@ func TestSendDeletionConfirmation_NormalTimezone(t *testing.T) { // TC-5.1
 	})
 
 	p.sendDeletionConfirmation(userID, channelID, deletedMsg)
+}
+
+func TestBuildEphemeralListUpdate_EmptyAttachments(t *testing.T) {
+	p := &Plugin{logger: &testutil.FakeLogger{}}
+	userID := "user-empty"
+	postID := "post-empty"
+	channelID := "chan-empty"
+	emptyAttachments := []*model.SlackAttachment{}
+	updatedList := &model.CommandResponse{
+		Props: map[string]any{"attachments": emptyAttachments},
+	}
+
+	post := p.buildEphemeralListUpdate(userID, postID, channelID, updatedList)
+
+	require.NotNil(t, post)
+	assert.Equal(t, postID, post.Id)
+	assert.Equal(t, userID, post.UserId)
+	assert.Equal(t, channelID, post.ChannelId)
+	assert.Equal(t, emptyAttachments, post.Props["attachments"])
+	assert.Equal(t, constants.EmptyListMessage, post.Message)
+}
+
+func TestBuildEphemeralListUpdate_NonEmptyAttachments(t *testing.T) {
+	p := &Plugin{logger: &testutil.FakeLogger{}}
+	userID := "user-nonempty"
+	postID := "post-nonempty"
+	channelID := "chan-nonempty"
+	nonEmptyAttachments := []*model.SlackAttachment{{Text: "Attachment 1"}}
+	updatedList := &model.CommandResponse{
+		Props: map[string]any{"attachments": nonEmptyAttachments},
+	}
+
+	post := p.buildEphemeralListUpdate(userID, postID, channelID, updatedList)
+
+	require.NotNil(t, post)
+	assert.Equal(t, postID, post.Id)
+	assert.Equal(t, userID, post.UserId)
+	assert.Equal(t, channelID, post.ChannelId)
+	assert.Equal(t, nonEmptyAttachments, post.Props["attachments"])
+	assert.Empty(t, post.Message, "Message should be empty when attachments are present")
 }
 
 func TestSendDeletionConfirmation_InvalidTimezoneFallback(t *testing.T) { // TC-5.2
