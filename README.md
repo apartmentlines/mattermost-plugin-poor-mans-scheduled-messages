@@ -1,6 +1,7 @@
 # Poor Man's Scheduled Messages
 
 [![Build Status](https://github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/actions/workflows/ci.yml/badge.svg)](https://github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/actions/workflows/github-code-scanning/codeql)
 
 <div align="center">
   <img src="logo.png" alt="Poor Man's Scheduled Messages logo">
