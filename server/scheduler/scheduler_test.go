@@ -149,9 +149,8 @@ func TestScheduler_StartAndStop(t *testing.T) {
 	mockChannel := mock.NewMockChannelService(ctrl)
 
 	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, mm.ListMatchingService{}, constants.MaxUserMessages)
-	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
+	clk := testutil.FakeClock{NowTime: time.Date(2023, 1, 1, 10, 30, 59, 950*1000*1000, time.UTC)}
 	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
-	s.newTicker = func(d time.Duration) *time.Ticker { return time.NewTicker(1 * time.Millisecond) }
 
 	now := clk.Now()
 	msg := &types.ScheduledMessage{
@@ -175,11 +174,11 @@ func TestScheduler_StartAndStop(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		s.Start() // This blocks until Stop() is called
-		wg.Done()
+		defer wg.Done()
+		s.run()
 	}()
 
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	s.Stop()
 	wg.Wait()
 }

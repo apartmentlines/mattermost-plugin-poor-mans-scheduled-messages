@@ -14,44 +14,35 @@ import (
 type tickerFactory func(d time.Duration) *time.Ticker
 
 type Scheduler struct {
-	logger    ports.Logger
-	poster    ports.PostService
-	store     ports.Store
-	linker    ports.ChannelService
-	botID     string
-	clock     ports.Clock
-	ctx       context.Context
-	cancel    context.CancelFunc
-	mu        sync.Mutex
-	newTicker tickerFactory
+	logger ports.Logger
+	poster ports.PostService
+	store  ports.Store
+	linker ports.ChannelService
+	botID  string
+	clock  ports.Clock
+	ctx    context.Context
+	cancel context.CancelFunc
+	mu     sync.Mutex
 }
 
 func New(logger ports.Logger, poster ports.PostService, store ports.Store, linker ports.ChannelService, botID string, clk ports.Clock) *Scheduler {
 	logger.Debug("Creating new scheduler instance")
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Scheduler{
-		logger:    logger,
-		poster:    poster,
-		store:     store,
-		linker:    linker,
-		botID:     botID,
-		clock:     clk,
-		ctx:       ctx,
-		cancel:    cancel,
-		newTicker: time.NewTicker,
+		logger: logger,
+		poster: poster,
+		store:  store,
+		linker: linker,
+		botID:  botID,
+		clock:  clk,
+		ctx:    ctx,
+		cancel: cancel,
 	}
 }
 
 func (s *Scheduler) Start() {
 	s.logger.Info("Scheduler starting")
-	ticker := s.newTicker(1 * time.Minute)
-	s.logger.Debug("Scheduler ticker created", "interval", "1m")
-	defer func() {
-		ticker.Stop()
-		s.logger.Debug("Scheduler ticker stopped")
-	}()
-	s.run(ticker.C)
-	s.logger.Info("Scheduler run loop exited")
+	go s.run()
 }
 
 func (s *Scheduler) Stop() {
@@ -60,15 +51,35 @@ func (s *Scheduler) Stop() {
 	s.logger.Info("Scheduler stopped")
 }
 
-func (s *Scheduler) run(tick <-chan time.Time) {
+func (s *Scheduler) run() {
 	s.logger.Debug("Scheduler run loop started")
+	defer s.logger.Info("Scheduler run loop exited")
+
 	for {
+		now := s.clock.Now()
+		nextMinute := now.Truncate(time.Minute).Add(time.Minute)
+		duration := nextMinute.Sub(now)
+
+		if duration <= 0 {
+			duration += time.Minute
+			nextMinute = nextMinute.Add(time.Minute)
+		}
+
+		s.logger.Debug("Scheduler waiting for next minute", "wait_duration", duration, "target_time", nextMinute)
+		timer := time.NewTimer(duration)
+
 		select {
 		case <-s.ctx.Done():
-			s.logger.Debug("Scheduler context done, exiting run loop")
+			s.logger.Debug("Scheduler context done, stopping timer and exiting run loop")
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
 			return
-		case t := <-tick:
-			s.logger.Debug("Scheduler received tick", "time", t)
+		case t := <-timer.C:
+			s.logger.Debug("Scheduler received timer tick", "time", t)
 			s.processDueMessages()
 		}
 	}
