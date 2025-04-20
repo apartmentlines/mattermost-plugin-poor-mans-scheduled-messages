@@ -448,6 +448,50 @@ func TestBuildEphemeralListUpdate_EmptyAttachments(t *testing.T) {
 	assert.Equal(t, constants.EmptyListMessage, post.Message)
 }
 
+func TestBuildEphemeralListUpdate_NilAttachments(t *testing.T) {
+	p := &Plugin{logger: &testutil.FakeLogger{}}
+	userID := "user-nil"
+	postID := "post-nil"
+	channelID := "chan-nil"
+	updatedList := &model.CommandResponse{
+		Props: map[string]any{"other_prop": "value"}, // attachments key is missing
+	}
+
+	post := p.buildEphemeralListUpdate(userID, postID, channelID, updatedList)
+
+	require.NotNil(t, post)
+	assert.Equal(t, postID, post.Id)
+	assert.Equal(t, userID, post.UserId)
+	assert.Equal(t, channelID, post.ChannelId)
+	assert.Nil(t, post.Props["attachments"], "Attachments prop should be nil or absent")
+	assert.Equal(t, constants.EmptyListMessage, post.Message)
+
+	// Test with explicit nil value
+	updatedList.Props["attachments"] = nil
+	post = p.buildEphemeralListUpdate(userID, postID, channelID, updatedList)
+	require.NotNil(t, post)
+	assert.Equal(t, constants.EmptyListMessage, post.Message)
+}
+
+func TestBuildEphemeralListUpdate_WrongTypeAttachments(t *testing.T) {
+	p := &Plugin{logger: &testutil.FakeLogger{}}
+	userID := "user-wrongtype"
+	postID := "post-wrongtype"
+	channelID := "chan-wrongtype"
+	updatedList := &model.CommandResponse{
+		Props: map[string]any{"attachments": "this is not a slice of attachments"},
+	}
+
+	post := p.buildEphemeralListUpdate(userID, postID, channelID, updatedList)
+
+	require.NotNil(t, post)
+	assert.Equal(t, postID, post.Id)
+	assert.Equal(t, userID, post.UserId)
+	assert.Equal(t, channelID, post.ChannelId)
+	assert.Equal(t, "this is not a slice of attachments", post.Props["attachments"])
+	assert.Equal(t, constants.EmptyListMessage, post.Message)
+}
+
 func TestBuildEphemeralListUpdate_NonEmptyAttachments(t *testing.T) {
 	p := &Plugin{logger: &testutil.FakeLogger{}}
 	userID := "user-nonempty"

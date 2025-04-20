@@ -80,9 +80,10 @@ func (p *Plugin) buildEphemeralListUpdate(userID, postID, channelID string, upda
 			"attachments": updatedList.Props["attachments"],
 		},
 	}
-	attachmentsSlice := updatedList.Props["attachments"].([]*model.SlackAttachment)
-	if len(attachmentsSlice) == 0 {
-		p.logger.Debug("Attachments slice is empty, setting EmptyListMessage", "user_id", userID, "post_id", postID)
+	attachmentsValue := updatedList.Props["attachments"]
+	attachmentsSlice, ok := attachmentsValue.([]*model.SlackAttachment)
+	if !ok || len(attachmentsSlice) == 0 {
+		p.logger.Debug("Attachments is empty, setting EmptyListMessage", "user_id", userID, "post_id", postID)
 		post.Message = constants.EmptyListMessage
 	}
 	return post
