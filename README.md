@@ -33,5 +33,5 @@ With the plugin installed: `/schedule help`
 You get what you pay for, so...
 
 1. **No attachments:** Slash commands don't pass attachment data as far as I can tell, so you can't attach anything to a scheduled message.
-2. **Message limits:** There is a limit of 1000 scheduled messages per user, each message can be no longer than 50KB in size (which is about 30 pages in a typical book).
-3. **High performance? Who knows:** Messages are managed via Mattermost's internal key/value store, and a scheduler cycles through all scheduled messages once per minute, sending those that are due. I doubt this would perform well on an installation with a ton of users.
+2. **Message limits:** There is a limit of 1000 scheduled messages per user, each message can be no longer than 50KB in size (max message length in Mattermost interface is currently about 16KB, so shouldn't be a problem).
+3. **High performance? Who knows:** Messages are managed via Mattermost's internal key/value store, and a scheduler cycles through all scheduled messages once per minute, sending those that are due. If you don't exceed the 'official' free plan limit of fifty users, and your users aren't all scheduling hundreds of messages, it will *probably* be fine.
