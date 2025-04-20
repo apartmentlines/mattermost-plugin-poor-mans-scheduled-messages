@@ -11,8 +11,6 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 )
 
-type tickerFactory func(d time.Duration) *time.Ticker
-
 type Scheduler struct {
 	logger ports.Logger
 	poster ports.PostService
