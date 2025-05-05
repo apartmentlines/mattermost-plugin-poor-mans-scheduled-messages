@@ -83,8 +83,12 @@ func TestParseScheduleInput(t *testing.T) {
 			input: `at 10:30am on 15aug message
 Here is a multi-line message:
 
+Unordered:
+
 *   List item 1
 *   List item 2 with **bold** and _italic_.
+
+Ordered:
 
 1.  Ordered item 1
 2.  Ordered item 2
@@ -106,8 +110,12 @@ A [link](http://example.com) too.
 				DateStr: "15aug",
 				Message: `Here is a multi-line message:
 
+Unordered:
+
 *   List item 1
 *   List item 2 with **bold** and _italic_.
+
+Ordered:
 
 1.  Ordered item 1
 2.  Ordered item 2
