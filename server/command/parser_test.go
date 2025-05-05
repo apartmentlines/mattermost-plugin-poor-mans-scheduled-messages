@@ -79,6 +79,53 @@ func TestParseScheduleInput(t *testing.T) {
 			want:  &ParsedSchedule{TimeStr: "6pm", DateStr: "2024-08-15", Message: "First line\nSecond line"},
 		},
 		{
+			name: "Multi-line message with Markdown",
+			input: `at 10:30am on 15aug message
+Here is a multi-line message:
+
+*   List item 1
+*   List item 2 with **bold** and _italic_.
+
+1.  Ordered item 1
+2.  Ordered item 2
+
+> This is a blockquote.
+
+` + "`inline code`" + `
+
+` + "```go" + `
+func main() {
+    fmt.Println("Code block")
+}
+` + "```" + `
+
+A [link](http://example.com) too.
+`,
+			want: &ParsedSchedule{
+				TimeStr: "10:30am",
+				DateStr: "15aug",
+				Message: `Here is a multi-line message:
+
+*   List item 1
+*   List item 2 with **bold** and _italic_.
+
+1.  Ordered item 1
+2.  Ordered item 2
+
+> This is a blockquote.
+
+` + "`inline code`" + `
+
+` + "```go" + `
+func main() {
+    fmt.Println("Code block")
+}
+` + "```" + `
+
+A [link](http://example.com) too.`,
+			},
+		},
+		{
 			name:        "Missing 'message' keyword",
 			input:       "at 3pm on mon foo bar",
 			wantErr:     true,
