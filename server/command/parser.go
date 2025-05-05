@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	regexFullCommand    = regexp.MustCompile(`(?i)^at\s+([0-9]{1,2}(?::[0-9]{2})?\s*(?:am|pm)?)(?:\s+on\s+((?:\d{4}-\d{2}-\d{2})|(?:\d{1,2}[a-z]{3})|(?:mon|tue|wed|thu|fri|sat|sun)|(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)))?\s+message\s+(.+)$`)
+	regexFullCommand    = regexp.MustCompile(`(?i)^at[ \t]+([0-9]{1,2}(?::[0-9]{2})?[ \t]*(?:am|pm)?)(?:[ \t]+on[ \t]+((?:\d{4}-\d{2}-\d{2})|(?:\d{1,2}[a-z]{3})|(?:mon|tue|wed|thu|fri|sat|sun)|(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)))?[ \t]+message\s+([\s\S]+)$`)
 	regexpYYYYMMDD      = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 	regexpShortDayMonth = regexp.MustCompile(`^(\d{1,2})([a-z]{3})$`)
 )
@@ -78,7 +78,8 @@ func parseScheduleInput(input string) (*ParsedSchedule, error) {
 		timeStr = timeStr[1:]
 	}
 	dateStr := strings.ToLower(matches[2])
-	message := matches[3]
+	message := strings.TrimSpace(matches[3])
+
 	return &ParsedSchedule{
 		TimeStr: timeStr,
 		DateStr: dateStr,

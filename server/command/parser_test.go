@@ -48,6 +48,37 @@ func TestParseScheduleInput(t *testing.T) {
 			want:  &ParsedSchedule{TimeStr: "5pm", DateStr: "monday", Message: "Mixed Case"},
 		},
 		{
+			name:  "Multi-line message",
+			input: "at 10am message Line 1\nLine 2",
+			want:  &ParsedSchedule{TimeStr: "10am", DateStr: "", Message: "Line 1\nLine 2"},
+		},
+		{
+			name:  "Newline separator after message keyword",
+			input: "at 11am message\nStarts on new line",
+			want:  &ParsedSchedule{TimeStr: "11am", DateStr: "", Message: "Starts on new line"},
+		},
+		{
+			name:  "Mixed whitespace separator after message keyword",
+			input: "at 1pm message \t \n Starts indented",
+			want:  &ParsedSchedule{TimeStr: "1pm", DateStr: "", Message: "Starts indented"},
+		},
+		{
+			name:  "Message with leading/trailing newlines",
+			input: "at 2pm message \n\n Content \n\n",
+			want:  &ParsedSchedule{TimeStr: "2pm", DateStr: "", Message: "Content"},
+		},
+		{
+			name:        "Message with only whitespace/newlines",
+			input:       "at 4pm message \n \t \n ",
+			wantErr:     true,
+			errContains: constants.ParserErrInvalidFormat,
+		},
+		{
+			name:  "Date included with multi-line message",
+			input: "at 6pm on 2024-08-15 message First line\nSecond line",
+			want:  &ParsedSchedule{TimeStr: "6pm", DateStr: "2024-08-15", Message: "First line\nSecond line"},
+		},
+		{
 			name:        "Missing 'message' keyword",
 			input:       "at 3pm on mon foo bar",
 			wantErr:     true,
