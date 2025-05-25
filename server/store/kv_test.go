@@ -143,7 +143,7 @@ func TestGetScheduledMessage_NotFound(t *testing.T) {
 	}
 }
 
-func TestListAllScheduledIDs_SkipBadKeys(t *testing.T) {
+func TestListScheduledMessages_SkipBadKeys(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -172,12 +172,12 @@ func TestListAllScheduledIDs_SkipBadKeys(t *testing.T) {
 		},
 	)
 
-	got, err := store.ListAllScheduledIDs()
+	got, err := store.ListScheduledMessages()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	want := map[string]int64{msgID2: 123}
+	want := []*types.ScheduledMessage{sampleMessage(msgID2, "u", time.Unix(123, 0))}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("mismatch: expected %v got %v", want, got)
 	}
@@ -370,7 +370,7 @@ func TestGetScheduledMessage_Success(t *testing.T) {
 	}
 }
 
-func TestListAllScheduledIDs_Happy(t *testing.T) {
+func TestListScheduledMessages_Happy(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	kvMock := mock.NewMockKVService(ctrl)
@@ -387,17 +387,17 @@ func TestListAllScheduledIDs_Happy(t *testing.T) {
 			return nil
 		},
 	)
-	got, err := store.ListAllScheduledIDs()
+	got, err := store.ListScheduledMessages()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	want := map[string]int64{msgID: 777}
+	want := []*types.ScheduledMessage{sampleMessage(msgID, "u", time.Unix(777, 0))}
 	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("mismatch")
+		t.Fatalf("mismatch: expected %v got %v", want, got)
 	}
 }
 
-func TestListAllScheduledIDs_ListKeysError(t *testing.T) {
+func TestListScheduledMessages_ListKeysError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	kvMock := mock.NewMockKVService(ctrl)
@@ -405,7 +405,7 @@ func TestListAllScheduledIDs_ListKeysError(t *testing.T) {
 	store := NewKVStore(testutil.FakeLogger{}, kvMock, listFake, constants.MaxUserMessages)
 	prefixOpt := pluginapi.WithPrefix(constants.SchedPrefix)
 	kvMock.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.AssignableToTypeOf(prefixOpt)).Return(nil, fmt.Errorf("list error"))
-	_, err := store.ListAllScheduledIDs()
+	_, err := store.ListScheduledMessages()
 	if err == nil {
 		t.Fatalf("expected error")
 	}

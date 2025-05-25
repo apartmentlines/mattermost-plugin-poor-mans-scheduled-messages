@@ -95,9 +95,9 @@ func (s *kvStore) GetScheduledMessage(msgID string) (*types.ScheduledMessage, er
 	return &msg, nil
 }
 
-func (s *kvStore) ListAllScheduledIDs() (map[string]int64, error) {
-	s.logger.Debug("Attempting to list all scheduled message IDs")
-	results := make(map[string]int64)
+func (s *kvStore) ListScheduledMessages() ([]*types.ScheduledMessage, error) {
+	s.logger.Debug("Attempting to list all scheduled messages")
+	var messages []*types.ScheduledMessage
 	prefix := constants.SchedPrefix
 	s.logger.Debug("Calling KV ListKeys", "prefix", prefix, "page", constants.DefaultPage, "perPage", constants.MaxFetchScheduledMessages)
 	keys, err := s.kv.ListKeys(constants.DefaultPage, constants.MaxFetchScheduledMessages, s.listMatchingService.WithPrefix(prefix))
@@ -110,18 +110,21 @@ func (s *kvStore) ListAllScheduledIDs() (map[string]int64, error) {
 	getFailedCount := 0
 	for _, key := range keys {
 		var msg types.ScheduledMessage
-		// s.logger.Debug("Getting individual message for ID list", "key", key)
 		getErr := s.kv.Get(key, &msg)
 		if getErr != nil {
 			s.logger.Warn("Failed to get individual scheduled message during list operation", "key", key, "error", getErr)
 			getFailedCount++
 			continue
 		}
-		results[msg.ID] = msg.PostAt.Unix()
-		// s.logger.Debug("Added message to results map", "key", key, "message_id", msg.ID, "post_at_unix", msg.PostAt.Unix())
+		if msg.ID == "" { // Should not happen if key exists, but good to check
+			s.logger.Warn("Retrieved message with empty ID during list operation", "key", key)
+			getFailedCount++
+			continue
+		}
+		messages = append(messages, &msg)
 	}
-	s.logger.Debug("Finished processing keys for ListAllScheduledIDs", "total_keys", len(keys), "successful_gets", len(results), "failed_gets", getFailedCount)
-	return results, nil
+	s.logger.Debug("Finished processing keys for ListScheduledMessages", "total_keys", len(keys), "successful_gets", len(messages), "failed_gets", getFailedCount)
+	return messages, nil
 }
 
 func (s *kvStore) ListUserMessageIDs(userID string) ([]string, error) {

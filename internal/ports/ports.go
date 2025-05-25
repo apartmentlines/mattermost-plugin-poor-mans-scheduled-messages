@@ -76,7 +76,7 @@ type Store interface {
 	DeleteScheduledMessage(userID string, msgID string) error
 	CleanupMessageFromUserIndex(userID string, msgID string) error
 	GetScheduledMessage(msgID string) (*types.ScheduledMessage, error)
-	ListAllScheduledIDs() (map[string]int64, error)
+	ListScheduledMessages() ([]*types.ScheduledMessage, error)
 	ListUserMessageIDs(userID string) ([]string, error)
 	GenerateMessageID() string
 }

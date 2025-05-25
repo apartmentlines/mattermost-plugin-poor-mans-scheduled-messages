@@ -96,52 +96,35 @@ func (s *Scheduler) processDueMessages() {
 	nowUnix := now.Unix()
 	s.logger.Debug("Current time for due check", "time_utc", now, "time_unix", nowUnix)
 
-	ids, err := s.dueIDs()
+	messages, err := s.getAllScheduledMessages()
 	if err != nil {
-		s.logger.Error("Failed to list scheduled message IDs", "error", err)
+		s.logger.Error("Failed to list scheduled messages", "error", err)
 		return
 	}
-	s.logger.Debug("Retrieved scheduled message IDs", "count", len(ids))
+	s.logger.Debug("Retrieved scheduled messages", "count", len(messages))
 
 	processedCount := 0
 	skippedCount := 0
-	loadFailedCount := 0
-	for id, ts := range ids {
-		if ts > nowUnix {
-			// s.logger.Debug("Skipping message, not due yet", "message_id", id, "post_at_unix", ts, "now_unix", nowUnix)
+	for _, msg := range messages {
+		if msg.PostAt.Unix() > nowUnix {
+			// s.logger.Debug("Skipping message, not due yet", "message_id", msg.ID, "post_at_unix", msg.PostAt.Unix(), "now_unix", nowUnix)
 			skippedCount++
 			continue
 		}
-		s.logger.Debug("Message is due, loading", "message_id", id, "post_at_unix", ts, "now_unix", nowUnix)
-		msg, ok := s.loadMessage(id)
-		if !ok {
-			loadFailedCount++
-			continue
-		}
+		s.logger.Debug("Message is due, processing", "message_id", msg.ID, "post_at_unix", msg.PostAt.Unix(), "now_unix", nowUnix)
 		s.handleDueMessage(msg)
 		processedCount++
 	}
-	s.logger.Debug("Finished processing potential messages", "processed", processedCount, "skipped_not_due", skippedCount, "load_failed", loadFailedCount, "total_candidates", len(ids))
+	s.logger.Debug("Finished processing potential messages", "processed", processedCount, "skipped_not_due", skippedCount, "total_candidates", len(messages))
 }
 
-func (s *Scheduler) dueIDs() (map[string]int64, error) {
-	s.logger.Debug("Listing all scheduled message IDs from store")
-	ids, err := s.store.ListAllScheduledIDs()
+func (s *Scheduler) getAllScheduledMessages() ([]*types.ScheduledMessage, error) {
+	s.logger.Debug("Listing all scheduled messages from store")
+	messages, err := s.store.ListScheduledMessages()
 	if err == nil {
-		s.logger.Debug("Successfully listed scheduled IDs", "count", len(ids))
+		s.logger.Debug("Successfully listed scheduled messages", "count", len(messages))
 	}
-	return ids, err
-}
-
-func (s *Scheduler) loadMessage(id string) (*types.ScheduledMessage, bool) {
-	s.logger.Debug("Loading scheduled message from store", "message_id", id)
-	msg, err := s.store.GetScheduledMessage(id)
-	if err != nil {
-		s.logger.Warn("Unable to load scheduled message", "message_id", id, "error", err)
-		return nil, false
-	}
-	s.logger.Debug("Successfully loaded scheduled message", "message_id", id, "user_id", msg.UserID, "channel_id", msg.ChannelID, "post_at", msg.PostAt)
-	return msg, true
+	return messages, err
 }
 
 func (s *Scheduler) handleDueMessage(msg *types.ScheduledMessage) {

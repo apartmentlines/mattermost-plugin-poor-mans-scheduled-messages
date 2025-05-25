@@ -91,19 +91,19 @@ func (mr *MockStoreMockRecorder) GetScheduledMessage(arg0 interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetScheduledMessage", reflect.TypeOf((*MockStore)(nil).GetScheduledMessage), arg0)
 }
 
-// ListAllScheduledIDs mocks base method.
-func (m *MockStore) ListAllScheduledIDs() (map[string]int64, error) {
+// ListScheduledMessages mocks base method.
+func (m *MockStore) ListScheduledMessages() ([]*types.ScheduledMessage, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListAllScheduledIDs")
-	ret0, _ := ret[0].(map[string]int64)
+	ret := m.ctrl.Call(m, "ListScheduledMessages")
+	ret0, _ := ret[0].([]*types.ScheduledMessage)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListAllScheduledIDs indicates an expected call of ListAllScheduledIDs.
-func (mr *MockStoreMockRecorder) ListAllScheduledIDs() *gomock.Call {
+// ListScheduledMessages indicates an expected call of ListScheduledMessages.
+func (mr *MockStoreMockRecorder) ListScheduledMessages() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAllScheduledIDs", reflect.TypeOf((*MockStore)(nil).ListAllScheduledIDs))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListScheduledMessages", reflect.TypeOf((*MockStore)(nil).ListScheduledMessages))
 }
 
 // ListUserMessageIDs mocks base method.
