@@ -116,11 +116,6 @@ func (s *kvStore) ListScheduledMessages() ([]*types.ScheduledMessage, error) {
 			getFailedCount++
 			continue
 		}
-		if msg.ID == "" { // Should not happen if key exists, but good to check
-			s.logger.Warn("Retrieved message with empty ID during list operation", "key", key)
-			getFailedCount++
-			continue
-		}
 		messages = append(messages, &msg)
 	}
 	s.logger.Debug("Finished processing keys for ListScheduledMessages", "total_keys", len(keys), "successful_gets", len(messages), "failed_gets", getFailedCount)
