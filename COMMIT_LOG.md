@@ -1,3 +1,10 @@
+### v1.2.0 - 12/28/2025
+
+* **Sun Dec 28 2025:** implement send button for scheduled messages, to send right away
+* **Sun Dec 28 2025:** bump deps
+* **Wed Jun 25 2025:** fix CI permissions error
+* **Sat May 31 2025:** add commit log
+
 ### v1.1.1 - 05/31/2025
 
 * **Sat May 31 2025:** cleanup unneeded comments and code
