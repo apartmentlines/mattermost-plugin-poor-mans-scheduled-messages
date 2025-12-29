@@ -1,3 +1,4 @@
+// Package scheduler delivers scheduled messages.
 package scheduler
 
 import (
@@ -11,6 +12,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 )
 
+// Scheduler delivers scheduled messages on a timed loop.
 type Scheduler struct {
 	logger ports.Logger
 	poster ports.PostService
@@ -23,6 +25,7 @@ type Scheduler struct {
 	mu     sync.Mutex
 }
 
+// New builds a Scheduler with the provided dependencies.
 func New(logger ports.Logger, poster ports.PostService, store ports.Store, linker ports.ChannelService, botID string, clk ports.Clock) *Scheduler {
 	logger.Debug("Creating new scheduler instance")
 	ctx, cancel := context.WithCancel(context.Background())
@@ -38,11 +41,13 @@ func New(logger ports.Logger, poster ports.PostService, store ports.Store, linke
 	}
 }
 
+// Start begins the scheduling loop.
 func (s *Scheduler) Start() {
 	s.logger.Info("Scheduler starting")
 	go s.run()
 }
 
+// Stop halts the scheduling loop.
 func (s *Scheduler) Stop() {
 	s.logger.Info("Scheduler stopping")
 	s.cancel()
@@ -129,16 +134,23 @@ func (s *Scheduler) getAllScheduledMessages() ([]*types.ScheduledMessage, error)
 
 func (s *Scheduler) handleDueMessage(msg *types.ScheduledMessage) {
 	s.logger.Debug("Handling due message", "message_id", msg.ID, "user_id", msg.UserID, "channel_id", msg.ChannelID)
-	if s.deleteSchedule(msg) != nil {
+	_ = s.SendNow(msg)
+}
+
+// SendNow delivers a scheduled message immediately and removes it from storage.
+func (s *Scheduler) SendNow(msg *types.ScheduledMessage) error {
+	s.logger.Debug("Sending scheduled message now", "message_id", msg.ID, "user_id", msg.UserID, "channel_id", msg.ChannelID)
+	if err := s.deleteSchedule(msg); err != nil {
 		s.logger.Error("Halting processing for message due to delete failure", "message_id", msg.ID)
-		return
+		return err
 	}
 	if err := s.postMessage(msg); err != nil {
 		s.logger.Warn("Message posting failed, attempting to DM user", "message_id", msg.ID, "user_id", msg.UserID, "error", err)
 		s.dmUserOnFailedMessage(msg, err)
-	} else {
-		s.logger.Info("Successfully posted scheduled message", "message_id", msg.ID, "user_id", msg.UserID, "channel_id", msg.ChannelID, "post_at", msg.PostAt)
+		return err
 	}
+	s.logger.Info("Successfully posted scheduled message", "message_id", msg.ID, "user_id", msg.UserID, "channel_id", msg.ChannelID, "post_at", msg.PostAt)
+	return nil
 }
 
 func (s *Scheduler) deleteSchedule(msg *types.ScheduledMessage) error {

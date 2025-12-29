@@ -1,6 +1,7 @@
-// Code generation directives for gomock. Run "make mocks".
-
+// Package ports defines interfaces for the plugin.
 package ports
+
+// Code generation directives for gomock. Run "make mocks".
 
 //go:generate mockgen -destination=../../adapters/mock/post_mock.go -package=mock github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports PostService
 //go:generate mockgen -destination=../../adapters/mock/channel_mock.go -package=mock github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports ChannelService

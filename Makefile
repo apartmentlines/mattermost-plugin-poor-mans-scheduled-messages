@@ -1,4 +1,4 @@
-GO ?= $(shell command -v go 2> /dev/null)
+GO ?= go
 GOIMPORTS ?= $(shell command -v goimports 2> /dev/null)
 NPM ?= $(shell command -v npm 2> /dev/null)
 CURL ?= $(shell command -v curl 2> /dev/null)
@@ -165,8 +165,8 @@ apply:
 ## Install go tools
 install-go-tools:
 	@echo Installing go tools
-	$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
-	$(GO) install gotest.tools/gotestsum@v1.7.0
+	$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.7.2
+	$(GO) install gotest.tools/gotestsum@v1.13.0
 
 ## Runs eslint and golangci-lint
 .PHONY: check-style

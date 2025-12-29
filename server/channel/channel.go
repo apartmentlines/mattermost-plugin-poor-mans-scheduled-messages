@@ -1,3 +1,4 @@
+// Package channel provides channel metadata helpers.
 package channel
 
 import (
@@ -9,6 +10,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 )
 
+// Channel provides channel lookup and formatting helpers.
 type Channel struct {
 	logger     ports.Logger
 	channelAPI ports.ChannelDataService
@@ -16,6 +18,7 @@ type Channel struct {
 	userAPI    ports.UserService
 }
 
+// New constructs a Channel service.
 func New(
 	logger ports.Logger,
 	channelAPI ports.ChannelDataService,
@@ -31,6 +34,7 @@ func New(
 	}
 }
 
+// GetInfo fetches channel metadata for a given channel ID.
 func (c *Channel) GetInfo(channelID string) (*ports.ChannelInfo, error) {
 	c.logger.Debug("Getting channel info", "channel_id", channelID)
 	channel, channelGetErr := c.channelAPI.Get(channelID)
@@ -85,6 +89,7 @@ func (c *Channel) getPublicOrPrivateChannelInfo(channel *model.Channel) (*ports.
 	}, nil
 }
 
+// UnknownChannel returns placeholder channel info for unknown channels.
 func (c *Channel) UnknownChannel() *ports.ChannelInfo {
 	c.logger.Debug("Returning unknown channel info placeholder")
 	return &ports.ChannelInfo{
@@ -92,6 +97,7 @@ func (c *Channel) UnknownChannel() *ports.ChannelInfo {
 	}
 }
 
+// GetInfoOrUnknown returns channel info or a placeholder on error.
 func (c *Channel) GetInfoOrUnknown(channelID string) *ports.ChannelInfo {
 	c.logger.Debug("Getting channel info or returning unknown placeholder", "channel_id", channelID)
 	channelInfo, getChannelErr := c.GetInfo(channelID)
@@ -103,6 +109,7 @@ func (c *Channel) GetInfoOrUnknown(channelID string) *ports.ChannelInfo {
 	return c.UnknownChannel()
 }
 
+// MakeChannelLink formats a channel link string for display.
 func (c *Channel) MakeChannelLink(channelInfo *ports.ChannelInfo) string {
 	c.logger.Debug("Making channel link string", "channel_id", channelInfo.ChannelID, "channel_type", channelInfo.ChannelType, "channel_link_raw", channelInfo.ChannelLink)
 	if channelInfo.ChannelID == "" {

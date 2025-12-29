@@ -61,6 +61,7 @@ var (
 	}
 )
 
+// ParsedSchedule contains parsed schedule components.
 type ParsedSchedule struct {
 	TimeStr string
 	DateStr string

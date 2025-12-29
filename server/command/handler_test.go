@@ -273,3 +273,56 @@ func TestUserDeleteMessage_Failure_DeleteScheduledMessageFails(t *testing.T) {
 	assert.Nil(t, returnedMsg)
 	assert.EqualError(t, err, expectedErr.Error())
 }
+
+func TestUserSendMessage_SuccessfulValidation(t *testing.T) {
+	handler, mocks, ctrl := setup(t)
+	defer ctrl.Finish()
+
+	userID := "ownerUserID"
+	msgID := "testMsgID"
+	msg := &types.ScheduledMessage{ID: msgID, UserID: userID}
+
+	mocks.store.EXPECT().GetScheduledMessage(msgID).Return(msg, nil)
+
+	returnedMsg, err := handler.UserSendMessage(userID, msgID)
+
+	require.NoError(t, err)
+	assert.Equal(t, msg, returnedMsg)
+}
+
+func TestUserSendMessage_Failure_GetScheduledMessageFails(t *testing.T) {
+	handler, mocks, ctrl := setup(t)
+	defer ctrl.Finish()
+
+	userID := "testUserID"
+	msgID := "testMsgID"
+	getErr := errors.New("get failed")
+	expectedErr := fmt.Errorf("%w", getErr)
+
+	mocks.store.EXPECT().GetScheduledMessage(msgID).Return(nil, getErr)
+
+	returnedMsg, err := handler.UserSendMessage(userID, msgID)
+
+	require.Error(t, err)
+	assert.Nil(t, returnedMsg)
+	assert.EqualError(t, err, expectedErr.Error())
+}
+
+func TestUserSendMessage_Failure_OwnershipMismatch(t *testing.T) {
+	handler, mocks, ctrl := setup(t)
+	defer ctrl.Finish()
+
+	requestingUserID := "requesterID"
+	ownerUserID := "ownerID"
+	msgID := "testMsgID"
+	msg := &types.ScheduledMessage{ID: msgID, UserID: ownerUserID}
+	expectedErr := fmt.Errorf("user %s attempted to send message %s owned by %s", requestingUserID, msgID, ownerUserID)
+
+	mocks.store.EXPECT().GetScheduledMessage(msgID).Return(msg, nil)
+
+	returnedMsg, err := handler.UserSendMessage(requestingUserID, msgID)
+
+	require.Error(t, err)
+	assert.Nil(t, returnedMsg)
+	assert.EqualError(t, err, expectedErr.Error())
+}

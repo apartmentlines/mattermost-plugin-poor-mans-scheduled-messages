@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// MustLoadLocation loads a timezone or fails the test.
 func MustLoadLocation(t *testing.T, name string) *time.Location {
 	t.Helper()
 	loc, err := time.LoadLocation(name)

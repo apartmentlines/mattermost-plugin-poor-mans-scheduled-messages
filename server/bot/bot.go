@@ -1,3 +1,4 @@
+// Package bot provides bot account setup helpers.
 package bot
 
 import (
@@ -9,6 +10,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 )
 
+// EnsureBot creates or retrieves the scheduler bot user.
 func EnsureBot(botAPI ports.BotService, imgSvc ports.BotProfileImageService) (string, error) {
 	bot := &model.Bot{
 		Username:    "scheduled-messages",

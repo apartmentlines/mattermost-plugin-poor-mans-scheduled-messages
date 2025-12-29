@@ -1,3 +1,4 @@
+// Package store provides persistence for scheduled messages.
 package store
 
 import (
@@ -18,6 +19,7 @@ type kvStore struct {
 	maxUserMessages     int
 }
 
+// NewKVStore constructs a KV-backed Store.
 func NewKVStore(logger ports.Logger, kv ports.KVService, listMatchingService ports.ListMatchingService, maxUserMessages int) ports.Store {
 	logger.Debug("Creating new KVStore instance")
 	return &kvStore{logger: logger, kv: kv, listMatchingService: listMatchingService, maxUserMessages: maxUserMessages}

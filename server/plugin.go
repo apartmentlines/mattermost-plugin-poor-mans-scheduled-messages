@@ -47,7 +47,7 @@ func (prodBuilder) NewChannel(cli *pluginapi.Client) *channel.Channel {
 }
 
 func (prodBuilder) NewStore(cli *pluginapi.Client, maxUserMessages int) ports.Store {
-	return store.NewKVStore(&cli.Log, &cli.KV, mm.ListMatchingService{}, maxUserMessages)
+	return store.NewKVStore(&cli.Log, &cli.KV, mm.NewListMatchingService(), maxUserMessages)
 }
 
 func (prodBuilder) NewScheduler(cli *pluginapi.Client, st ports.Store, ch ports.ChannelService, botID string, clk ports.Clock) *scheduler.Scheduler {
@@ -83,7 +83,7 @@ type Plugin struct {
 	configuration          *configuration
 	client                 *pluginapi.Client
 	BotID                  string
-	Scheduler              *scheduler.Scheduler
+	Scheduler              ports.Scheduler
 	Store                  ports.Store
 	Channel                ports.ChannelService
 	Command                command.Interface
@@ -107,6 +107,7 @@ func (p *Plugin) loadHelpText(text string) (string, error) {
 	}
 	helpFilePath := filepath.Join(bundlePath, constants.AssetsDir, constants.HelpFilename)
 	p.API.LogDebug("Reading help file", "path", helpFilePath)
+	// #nosec G304 -- helpFilePath is derived from the plugin bundle path.
 	helpBytes, err := os.ReadFile(helpFilePath)
 	if err != nil {
 		p.API.LogError("Failed to read help file", "path", helpFilePath, "error", err)
@@ -143,7 +144,7 @@ func (p *Plugin) OnActivateWith(
 	p.API.LogDebug("Help text loaded")
 
 	p.API.LogDebug("Ensuring bot account exists")
-	botID, botErr := ensureBot(&p.client.Bot, mm.BotProfileImageServiceWrapper{})
+	botID, botErr := ensureBot(&p.client.Bot, mm.NewBotProfileImageService())
 	if botErr != nil {
 		p.API.LogError("Plugin activation failed: could not ensure bot.", "error", botErr.Error())
 		return botErr
@@ -227,7 +228,7 @@ func (p *Plugin) initialize(botID string, clk ports.Clock, builder AppBuilder) e
 	return nil
 }
 
-func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	p.logger.Debug("ExecuteCommand hook triggered", "user_id", args.UserId, "channel_id", args.ChannelId, "command", args.Command)
 	resp, appErr := p.Command.Execute(args)
 	if appErr != nil {

@@ -1,7 +1,9 @@
+//revive:disable:var-naming // Package name is conventional for shared types.
 package types
 
 import "time"
 
+// ScheduledMessage represents a message scheduled for future delivery.
 type ScheduledMessage struct {
 	ID             string    `json:"id"`
 	UserID         string    `json:"user_id"`

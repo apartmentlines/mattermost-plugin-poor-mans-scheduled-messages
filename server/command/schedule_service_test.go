@@ -96,7 +96,7 @@ func TestBuild_HappyPath(t *testing.T) {
 	mocks.userAPI.EXPECT().Get(testUserID).Return(&model.User{Timezone: map[string]string{"manualTimezone": testTimezone}}, nil)
 	mocks.store.EXPECT().GenerateMessageID().Return(testMsgID)
 	mocks.store.EXPECT().SaveScheduledMessage(testUserID, gomock.AssignableToTypeOf(&types.ScheduledMessage{})).
-		DoAndReturn(func(userID string, msg *types.ScheduledMessage) error {
+		DoAndReturn(func(_ string, msg *types.ScheduledMessage) error {
 			assert.Equal(t, testMsgID, msg.ID)
 			assert.Equal(t, testUserID, msg.UserID)
 			assert.Equal(t, testChannelID, msg.ChannelID)
@@ -129,7 +129,7 @@ func TestBuild_TimezoneLogic_DefaultUsed_NoSettings(t *testing.T) {
 	mocks.userAPI.EXPECT().Get(testUserID).Return(&model.User{Timezone: map[string]string{}}, nil)
 	mocks.store.EXPECT().GenerateMessageID().Return(testMsgID)
 	mocks.store.EXPECT().SaveScheduledMessage(testUserID, gomock.AssignableToTypeOf(&types.ScheduledMessage{})).
-		DoAndReturn(func(userID string, msg *types.ScheduledMessage) error {
+		DoAndReturn(func(_ string, msg *types.ScheduledMessage) error {
 			assert.Equal(t, testDefaultTZ, msg.Timezone)
 			assert.True(t, expectedPostAtUTC.Equal(msg.PostAt))
 			return nil
@@ -164,7 +164,7 @@ func TestBuild_TimezoneLogic_ManualUsed(t *testing.T) {
 	}}, nil)
 	mocks.store.EXPECT().GenerateMessageID().Return(testMsgID)
 	mocks.store.EXPECT().SaveScheduledMessage(testUserID, gomock.AssignableToTypeOf(&types.ScheduledMessage{})).
-		DoAndReturn(func(userID string, msg *types.ScheduledMessage) error {
+		DoAndReturn(func(_ string, msg *types.ScheduledMessage) error {
 			assert.Equal(t, manualTZ, msg.Timezone)
 			assert.True(t, expectedPostAtUTC.Equal(msg.PostAt))
 			return nil
@@ -240,7 +240,7 @@ func TestBuild_TimezoneLogic_AutomaticUsed(t *testing.T) {
 	}}, nil)
 	mocks.store.EXPECT().GenerateMessageID().Return(testMsgID)
 	mocks.store.EXPECT().SaveScheduledMessage(testUserID, gomock.AssignableToTypeOf(&types.ScheduledMessage{})).
-		DoAndReturn(func(userID string, msg *types.ScheduledMessage) error {
+		DoAndReturn(func(_ string, msg *types.ScheduledMessage) error {
 			assert.Equal(t, autoTZ, msg.Timezone)
 			assert.True(t, expectedPostAtUTC.Equal(msg.PostAt))
 			return nil
@@ -305,7 +305,7 @@ func TestBuild_PreparationFailure_UserTimezoneFetchError(t *testing.T) {
 	mocks.userAPI.EXPECT().Get(testUserID).Return(nil, fetchErr)
 	mocks.store.EXPECT().GenerateMessageID().Return(testMsgID)
 	mocks.store.EXPECT().SaveScheduledMessage(testUserID, gomock.AssignableToTypeOf(&types.ScheduledMessage{})).
-		DoAndReturn(func(userID string, msg *types.ScheduledMessage) error {
+		DoAndReturn(func(_ string, msg *types.ScheduledMessage) error {
 			assert.Equal(t, testMsgID, msg.ID)
 			assert.True(t, expectedPostAtUTC.Equal(msg.PostAt), "Expected %v, got %v", expectedPostAtUTC, msg.PostAt)
 			assert.Equal(t, testDefaultTZ, msg.Timezone)
@@ -335,7 +335,7 @@ func TestBuild_PreparationFailure_InvalidUserTimezone(t *testing.T) {
 	mocks.userAPI.EXPECT().Get(testUserID).Return(&model.User{Timezone: map[string]string{"manualTimezone": invalidTZ}}, nil)
 	mocks.store.EXPECT().GenerateMessageID().Return(testMsgID)
 	mocks.store.EXPECT().SaveScheduledMessage(testUserID, gomock.AssignableToTypeOf(&types.ScheduledMessage{})).
-		DoAndReturn(func(userID string, msg *types.ScheduledMessage) error {
+		DoAndReturn(func(_ string, msg *types.ScheduledMessage) error {
 			assert.Equal(t, testMsgID, msg.ID)
 			assert.True(t, expectedPostAtUTC.Equal(msg.PostAt), "Expected %v, got %v", expectedPostAtUTC, msg.PostAt)
 			assert.Equal(t, constants.DefaultTimezone, msg.Timezone)

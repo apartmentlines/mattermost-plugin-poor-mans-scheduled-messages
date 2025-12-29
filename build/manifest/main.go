@@ -1,3 +1,4 @@
+// Package main provides the manifest tool for plugin assets.
 package main
 
 import (
@@ -101,11 +102,16 @@ func findManifest() (*model.Manifest, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find manifest in current working directory")
 	}
+	// #nosec G304 -- manifestFilePath is derived from the local repo manifest lookup.
 	manifestFile, err := os.Open(manifestFilePath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to open %s", manifestFilePath)
 	}
-	defer manifestFile.Close()
+	defer func() {
+		if closeErr := manifestFile.Close(); closeErr != nil {
+			fmt.Fprintf(os.Stderr, "failed to close manifest file: %v\n", closeErr)
+		}
+	}()
 
 	// Re-decode the manifest, disallowing unknown fields. When we write the manifest back out,
 	// we don't want to accidentally clobber anything we won't preserve.

@@ -1,40 +1,48 @@
+version: 2
+
 run:
   timeout: 5m
   modules-download-mode: readonly
 
-linters-settings:
-  gofmt:
-    simplify: true
-  goimports:
-    local-prefixes: github.com/apartmentlines/mattermost-poor-mans-scheduled-messages
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment
-  misspell:
-    locale: US
-
 linters:
-  disable-all: true
+  # Start from the default set (errcheck, govet, ineffassign, staticcheck, unused)
+  default: standard
+
+  # Extra linters on top of the default set, chosen from your `help linters` output.
   enable:
     - bodyclose
-    - errcheck
     - gocritic
-    - gofmt
-    - goimports
     - gosec
-    - gosimple
-    - govet
-    - ineffassign
     - misspell
     - nakedret
     - revive
-    - staticcheck
-    - stylecheck
-    - typecheck
     - unconvert
-    - unused
     - whitespace
+
+  # Turn off ones that are often too noisy / heavy; keep this as needed.
+  disable:
+    - cyclop
+    - funlen
+    - gocyclo
+
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+    misspell:
+      locale: US
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes: github.com/apartmentlines/mattermost-poor-mans-scheduled-messages
 
 issues:
   exclude-rules:
@@ -44,7 +52,6 @@ issues:
     - path: _test\.go
       linters:
         - bodyclose
-        - scopelint # https://github.com/kyoh86/scopelint/issues/4
     - linters:
         - revive
       text: unused-parameter

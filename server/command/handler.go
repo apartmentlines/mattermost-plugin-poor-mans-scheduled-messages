@@ -1,3 +1,4 @@
+// Package command provides slash command handling.
 package command
 
 import (
@@ -10,6 +11,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 )
 
+// Handler coordinates slash command execution.
 type Handler struct {
 	logger          ports.Logger
 	slasher         ports.SlashCommandService
@@ -21,6 +23,7 @@ type Handler struct {
 	helpText        string
 }
 
+// NewHandler constructs a Handler with dependencies.
 func NewHandler(
 	logger ports.Logger,
 	slasher ports.SlashCommandService,
@@ -44,6 +47,7 @@ func NewHandler(
 	}
 }
 
+// Register registers the slash command.
 func (h *Handler) Register() error {
 	h.logger.Debug("Registering slash command")
 	err := h.slasher.Register(h.scheduleDefinition())
@@ -54,6 +58,7 @@ func (h *Handler) Register() error {
 	return nil
 }
 
+// Execute handles the slash command.
 func (h *Handler) Execute(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	h.logger.Debug("Executing command", "user_id", args.UserId, "channel_id", args.ChannelId, "command", args.Command)
 	commandText := strings.TrimSpace(args.Command[len("/"+constants.CommandTrigger):])
@@ -71,11 +76,13 @@ func (h *Handler) Execute(args *model.CommandArgs) (*model.CommandResponse, *mod
 	}
 }
 
+// BuildEphemeralList builds the scheduled messages list response.
 func (h *Handler) BuildEphemeralList(args *model.CommandArgs) *model.CommandResponse {
 	h.logger.Debug("Building ephemeral list response", "user_id", args.UserId)
 	return h.listService.Build(args.UserId)
 }
 
+// UserDeleteMessage validates and deletes a scheduled message.
 func (h *Handler) UserDeleteMessage(userID string, msgID string) (*types.ScheduledMessage, error) {
 	h.logger.Debug("Attempting to delete message", "user_id", userID, "message_id", msgID)
 	msg, err := h.store.GetScheduledMessage(msgID)
@@ -93,6 +100,22 @@ func (h *Handler) UserDeleteMessage(userID string, msgID string) (*types.Schedul
 		return nil, fmt.Errorf("failed to delete scheduled message %s: %w", msgID, err)
 	}
 	h.logger.Info("Successfully deleted scheduled message", "user_id", userID, "message_id", msgID)
+	return msg, nil
+}
+
+// UserSendMessage validates a scheduled message for immediate send.
+func (h *Handler) UserSendMessage(userID string, msgID string) (*types.ScheduledMessage, error) {
+	h.logger.Debug("Attempting to send message immediately", "user_id", userID, "message_id", msgID)
+	msg, err := h.store.GetScheduledMessage(msgID)
+	if err != nil {
+		h.logger.Error("Failed to get scheduled message for send", "message_id", msgID, "error", err)
+		return nil, err
+	}
+	if msg.UserID != userID {
+		h.logger.Warn("User attempted to send message owned by another user", "requesting_user_id", userID, "message_id", msgID, "owner_user_id", msg.UserID)
+		return nil, fmt.Errorf("user %s attempted to send message %s owned by %s", userID, msgID, msg.UserID)
+	}
+	h.logger.Info("Successfully validated scheduled message for send", "user_id", userID, "message_id", msgID)
 	return msg, nil
 }
 

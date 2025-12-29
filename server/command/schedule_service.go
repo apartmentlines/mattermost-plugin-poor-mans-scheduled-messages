@@ -12,6 +12,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 )
 
+// ScheduleService handles scheduling requests.
 type ScheduleService struct {
 	logger          ports.Logger
 	userAPI         ports.UserService
@@ -21,6 +22,7 @@ type ScheduleService struct {
 	maxUserMessages int
 }
 
+// NewScheduleService constructs a ScheduleService.
 func NewScheduleService(
 	logger ports.Logger,
 	userAPI ports.UserService,
@@ -40,6 +42,7 @@ func NewScheduleService(
 	}
 }
 
+// Build validates and schedules a message.
 func (s *ScheduleService) Build(args *model.CommandArgs, text string) *model.CommandResponse {
 	s.logger.Debug("Attempting to schedule message", "user_id", args.UserId, "channel_id", args.ChannelId, "text", text)
 

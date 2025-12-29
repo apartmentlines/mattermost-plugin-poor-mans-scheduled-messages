@@ -29,6 +29,17 @@ func createTestMessage(id string, userID string, channelID string, content strin
 	}
 }
 
+func getAction(t *testing.T, att *model.SlackAttachment, actionID string) *model.PostAction {
+	t.Helper()
+	for _, action := range att.Actions {
+		if action.Id == actionID {
+			return action
+		}
+	}
+	require.Fail(t, fmt.Sprintf("action %s not found", actionID))
+	return nil
+}
+
 func TestNewListService_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -121,9 +132,17 @@ func TestBuild_Success(t *testing.T) {
 	expectedHeader2 := formatter.FormatListAttachmentHeader(msg2.PostAt.In(loc), "in channel: ~private-channel", msg2.MessageContent)
 
 	assert.Equal(t, expectedHeader1, attachments[0].Text)
-	assert.Equal(t, "id1", attachments[0].Actions[0].Integration.Context["id"])
+	require.Len(t, attachments[0].Actions, 2)
+	sendAction1 := getAction(t, attachments[0], "send")
+	deleteAction1 := getAction(t, attachments[0], "delete")
+	assert.Equal(t, "id1", sendAction1.Integration.Context["id"])
+	assert.Equal(t, "id1", deleteAction1.Integration.Context["id"])
 	assert.Equal(t, expectedHeader2, attachments[1].Text)
-	assert.Equal(t, "id2", attachments[1].Actions[0].Integration.Context["id"])
+	require.Len(t, attachments[1].Actions, 2)
+	sendAction2 := getAction(t, attachments[1], "send")
+	deleteAction2 := getAction(t, attachments[1], "delete")
+	assert.Equal(t, "id2", sendAction2.Integration.Context["id"])
+	assert.Equal(t, "id2", deleteAction2.Integration.Context["id"])
 }
 
 func TestLoadMessages_ListIDsError(t *testing.T) {
@@ -366,16 +385,24 @@ func TestBuildAttachments_SingleMessage(t *testing.T) {
 	expectedHeader := formatter.FormatListAttachmentHeader(now.In(loc), channelLinkStr, "Hello world")
 
 	assert.Equal(t, expectedHeader, att.Text)
-	require.Len(t, att.Actions, 1)
-	action := att.Actions[0]
-	assert.Equal(t, "delete", action.Id)
-	assert.Equal(t, "Delete", action.Name)
-	assert.Equal(t, "danger", action.Style)
-	require.NotNil(t, action.Integration)
-	assert.Equal(t, "/plugins/com.mattermost.plugin-poor-mans-scheduled-messages/api/v1/delete", action.Integration.URL)
-	require.NotNil(t, action.Integration.Context)
-	assert.Equal(t, "delete", action.Integration.Context["action"])
-	assert.Equal(t, "msg1", action.Integration.Context["id"])
+	require.Len(t, att.Actions, 2)
+	sendAction := getAction(t, att, "send")
+	deleteAction := getAction(t, att, "delete")
+
+	assert.Equal(t, "Send", sendAction.Name)
+	require.NotNil(t, sendAction.Integration)
+	assert.Equal(t, "/plugins/com.mattermost.plugin-poor-mans-scheduled-messages/api/v1/send", sendAction.Integration.URL)
+	require.NotNil(t, sendAction.Integration.Context)
+	assert.Equal(t, "send", sendAction.Integration.Context["action"])
+	assert.Equal(t, "msg1", sendAction.Integration.Context["id"])
+
+	assert.Equal(t, "Delete", deleteAction.Name)
+	assert.Equal(t, "danger", deleteAction.Style)
+	require.NotNil(t, deleteAction.Integration)
+	assert.Equal(t, "/plugins/com.mattermost.plugin-poor-mans-scheduled-messages/api/v1/delete", deleteAction.Integration.URL)
+	require.NotNil(t, deleteAction.Integration.Context)
+	assert.Equal(t, "delete", deleteAction.Integration.Context["action"])
+	assert.Equal(t, "msg1", deleteAction.Integration.Context["id"])
 }
 
 func TestBuildAttachments_MultipleMessages_SameChannel_CacheHit(t *testing.T) {
@@ -399,9 +426,13 @@ func TestBuildAttachments_MultipleMessages_SameChannel_CacheHit(t *testing.T) {
 
 	require.Len(t, attachments, 2)
 	assert.Contains(t, attachments[0].Text, "content1")
-	assert.Equal(t, "msg1", attachments[0].Actions[0].Integration.Context["id"])
+	require.Len(t, attachments[0].Actions, 2)
+	assert.Equal(t, "msg1", getAction(t, attachments[0], "send").Integration.Context["id"])
+	assert.Equal(t, "msg1", getAction(t, attachments[0], "delete").Integration.Context["id"])
 	assert.Contains(t, attachments[1].Text, "content2")
-	assert.Equal(t, "msg2", attachments[1].Actions[0].Integration.Context["id"])
+	require.Len(t, attachments[1].Actions, 2)
+	assert.Equal(t, "msg2", getAction(t, attachments[1], "send").Integration.Context["id"])
+	assert.Equal(t, "msg2", getAction(t, attachments[1], "delete").Integration.Context["id"])
 }
 
 func TestBuildAttachments_MultipleMessages_DifferentChannels(t *testing.T) {
@@ -430,10 +461,14 @@ func TestBuildAttachments_MultipleMessages_DifferentChannels(t *testing.T) {
 	require.Len(t, attachments, 2)
 	assert.Contains(t, attachments[0].Text, linkStr1)
 	assert.Contains(t, attachments[0].Text, "content1")
-	assert.Equal(t, "msg1", attachments[0].Actions[0].Integration.Context["id"])
+	require.Len(t, attachments[0].Actions, 2)
+	assert.Equal(t, "msg1", getAction(t, attachments[0], "send").Integration.Context["id"])
+	assert.Equal(t, "msg1", getAction(t, attachments[0], "delete").Integration.Context["id"])
 	assert.Contains(t, attachments[1].Text, linkStr2)
 	assert.Contains(t, attachments[1].Text, "content2")
-	assert.Equal(t, "msg2", attachments[1].Actions[0].Integration.Context["id"])
+	require.Len(t, attachments[1].Actions, 2)
+	assert.Equal(t, "msg2", getAction(t, attachments[1], "send").Integration.Context["id"])
+	assert.Equal(t, "msg2", getAction(t, attachments[1], "delete").Integration.Context["id"])
 }
 
 func TestBuildAttachments_TimezoneHandling(t *testing.T) {
@@ -509,14 +544,22 @@ func TestCreateAttachment(t *testing.T) {
 	att := createAttachment(text, messageID)
 
 	assert.Equal(t, text, att.Text)
-	require.Len(t, att.Actions, 1)
-	action := att.Actions[0]
-	assert.Equal(t, "delete", action.Id)
-	assert.Equal(t, "Delete", action.Name)
-	assert.Equal(t, "danger", action.Style)
-	require.NotNil(t, action.Integration)
-	assert.Equal(t, "/plugins/com.mattermost.plugin-poor-mans-scheduled-messages/api/v1/delete", action.Integration.URL)
-	require.NotNil(t, action.Integration.Context)
-	assert.Equal(t, "delete", action.Integration.Context["action"])
-	assert.Equal(t, messageID, action.Integration.Context["id"])
+	require.Len(t, att.Actions, 2)
+
+	sendAction := getAction(t, att, "send")
+	assert.Equal(t, "Send", sendAction.Name)
+	require.NotNil(t, sendAction.Integration)
+	assert.Equal(t, "/plugins/com.mattermost.plugin-poor-mans-scheduled-messages/api/v1/send", sendAction.Integration.URL)
+	require.NotNil(t, sendAction.Integration.Context)
+	assert.Equal(t, "send", sendAction.Integration.Context["action"])
+	assert.Equal(t, messageID, sendAction.Integration.Context["id"])
+
+	deleteAction := getAction(t, att, "delete")
+	assert.Equal(t, "Delete", deleteAction.Name)
+	assert.Equal(t, "danger", deleteAction.Style)
+	require.NotNil(t, deleteAction.Integration)
+	assert.Equal(t, "/plugins/com.mattermost.plugin-poor-mans-scheduled-messages/api/v1/delete", deleteAction.Integration.URL)
+	require.NotNil(t, deleteAction.Integration.Context)
+	assert.Equal(t, "delete", deleteAction.Integration.Context["action"])
+	assert.Equal(t, messageID, deleteAction.Integration.Context["id"])
 }

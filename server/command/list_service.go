@@ -12,12 +12,14 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 )
 
+// ListService builds scheduled message lists.
 type ListService struct {
 	logger  ports.Logger
 	store   ports.Store
 	channel ports.ChannelService
 }
 
+// NewListService constructs a ListService.
 func NewListService(logger ports.Logger, store ports.Store, channel ports.ChannelService) *ListService {
 	logger.Debug("Creating new ListService")
 	return &ListService{
@@ -27,6 +29,7 @@ func NewListService(logger ports.Logger, store ports.Store, channel ports.Channe
 	}
 }
 
+// Build creates a scheduled message list response.
 func (l *ListService) Build(userID string) *model.CommandResponse {
 	l.logger.Info("Building scheduled message list for user", "user_id", userID)
 	msgs, err := l.loadMessages(userID)
@@ -140,6 +143,17 @@ func createAttachment(text string, messageID string) *model.SlackAttachment {
 	return &model.SlackAttachment{
 		Text: text,
 		Actions: []*model.PostAction{
+			{
+				Id:   "send",
+				Name: "Send",
+				Integration: &model.PostActionIntegration{
+					URL: "/plugins/com.mattermost.plugin-poor-mans-scheduled-messages/api/v1/send",
+					Context: map[string]any{
+						"action": "send",
+						"id":     messageID,
+					},
+				},
+			},
 			{
 				Id:    "delete",
 				Name:  "Delete",

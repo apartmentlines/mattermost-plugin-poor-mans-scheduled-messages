@@ -1,3 +1,4 @@
+//revive:disable:var-naming // Package name is conventional for shared types.
 package types
 
 import (
