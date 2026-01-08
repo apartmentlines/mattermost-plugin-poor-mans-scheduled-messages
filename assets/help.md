@@ -37,6 +37,8 @@ Switch to the channel or direct message where you want the message to appear, th
 
 **See your scheduled messages:** `/schedule list`
 
+**Send scheduled messages now:** List your messages, click the `Send` button below the message.
+
 **Delete scheduled messages:** List your messages, click the `Delete` button below the message.
 
 **Get help:** `/schedule help` (Shows this information again).
