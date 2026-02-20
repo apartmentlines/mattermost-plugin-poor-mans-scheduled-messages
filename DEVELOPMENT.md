@@ -93,16 +93,16 @@ We use two strategies for test doubles:
 
 #### Generating mocks
 
- 1 Make sure each interface you want mocked has a //go:generate mockgen ... comment. Example:
+1. Make sure each interface you want mocked has a `//go:generate mockgen ...` comment. Example:
 
     //go:generate mockgen -destination=../../adapters/mock/post_mock.go -package=mock \
         github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports PostService
 
-1. Regenerate all mocks whenever an interface in `internal/ports` changes:
+2. Regenerate all mocks whenever an interface in `internal/ports` changes:
 
        make mocks
 
-2. Commit the regenerated `*_mock.go` files so CI and other developers don’t need `mockgen` installed.
+3. Commit the regenerated `*_mock.go` files so CI and other developers don’t need `mockgen` installed.
 
 Guideline: if an interface has more than two trivial methods, prefer a gomock‑generated mock; otherwise write a hand fake.
 
@@ -145,4 +145,3 @@ Why
 4. Inject the new port into any package that needs it via constructor parameters.
 
 5. Update tests to set expectations on the new gomock mock or adjust hand fakes.
-

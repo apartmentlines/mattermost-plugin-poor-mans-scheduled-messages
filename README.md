@@ -35,10 +35,10 @@ You get what you pay for, so...
 
 1. **No attachments:** You can't attach anything to a scheduled message *(slash commands don't pass attachment data as far as I can tell)*.
 2. **Send order:** Messages scheduled for the same channel or direct message at the exact same time are *NOT* guaranteed to be posted in the order they were scheduled.
-2. **Message limits:**
+3. **Message limits:**
    * 1000 scheduled messages per user
    * 50KB per message *(max message length in Mattermost interface is currently about 16KB, so shouldn't be a problem)*.
-3. **High performance? Who knows:**
+4. **High performance? Who knows:**
    * Messages are managed via Mattermost's internal key/value store.
    * A scheduler cycles through all scheduled messages once per minute, sending those that are due.
    * If you don't exceed the 'official' free plan limit of fifty users, and your users aren't all scheduling hundreds of messages, it will *probably* be fine.
