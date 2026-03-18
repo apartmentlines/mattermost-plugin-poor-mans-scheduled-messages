@@ -1,3 +1,11 @@
+### v1.2.1 - 03/17/2026
+
+* **Wed Mar 18 2026:** SlackAttachment -> MessageAttachment
+* **Wed Mar 18 2026:** upgrade some deps to fix security alerts
+* **Fri Feb 20 2026:** minor doc tweaks
+* **Wed Jan 07 2026:** document how to send a scheduled message now
+* **Sun Dec 28 2025:** commit log for 1.2.0 release
+
 ### v1.2.0 - 12/28/2025
 
 * **Sun Dec 28 2025:** implement send button for scheduled messages, to send right away
