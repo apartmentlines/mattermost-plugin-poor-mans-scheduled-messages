@@ -87,9 +87,9 @@ func (l *ListService) loadMessages(userID string) ([]*types.ScheduledMessage, er
 	return msgs, nil
 }
 
-func (l *ListService) buildAttachments(msgs []*types.ScheduledMessage) []*model.SlackAttachment {
+func (l *ListService) buildAttachments(msgs []*types.ScheduledMessage) []*model.MessageAttachment {
 	l.logger.Debug("Building attachments for scheduled messages", "count", len(msgs))
-	attachments := []*model.SlackAttachment{}
+	attachments := []*model.MessageAttachment{}
 	channelCache := make(map[string]*ports.ChannelInfo)
 
 	for _, m := range msgs {
@@ -129,7 +129,7 @@ func emptyResponse() *model.CommandResponse {
 	}
 }
 
-func successResponse(atts []*model.SlackAttachment) *model.CommandResponse {
+func successResponse(atts []*model.MessageAttachment) *model.CommandResponse {
 	return &model.CommandResponse{
 		ResponseType: model.CommandResponseTypeEphemeral,
 		Text:         constants.ListHeader,
@@ -139,8 +139,8 @@ func successResponse(atts []*model.SlackAttachment) *model.CommandResponse {
 	}
 }
 
-func createAttachment(text string, messageID string) *model.SlackAttachment {
-	return &model.SlackAttachment{
+func createAttachment(text string, messageID string) *model.MessageAttachment {
+	return &model.MessageAttachment{
 		Text: text,
 		Actions: []*model.PostAction{
 			{

@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var expectedAttachments = []*model.SlackAttachment{{Text: "dummy attachment data"}}
+var expectedAttachments = []*model.MessageAttachment{{Text: "dummy attachment data"}}
 
 type mockCommand struct {
 	UserDeleteMessageFunc  func(userID, msgID string) (*types.ScheduledMessage, error)
@@ -750,7 +750,7 @@ func TestBuildEphemeralListUpdate_EmptyAttachments(t *testing.T) {
 	userID := "user-empty"
 	postID := "post-empty"
 	channelID := "chan-empty"
-	emptyAttachments := []*model.SlackAttachment{}
+	emptyAttachments := []*model.MessageAttachment{}
 	updatedList := &model.CommandResponse{
 		Props: map[string]any{"attachments": emptyAttachments},
 	}
@@ -814,7 +814,7 @@ func TestBuildEphemeralListUpdate_NonEmptyAttachments(t *testing.T) {
 	userID := "user-nonempty"
 	postID := "post-nonempty"
 	channelID := "chan-nonempty"
-	nonEmptyAttachments := []*model.SlackAttachment{{Text: "Attachment 1"}}
+	nonEmptyAttachments := []*model.MessageAttachment{{Text: "Attachment 1"}}
 	updatedList := &model.CommandResponse{
 		Props: map[string]any{"attachments": nonEmptyAttachments},
 	}

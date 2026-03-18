@@ -29,7 +29,7 @@ func createTestMessage(id string, userID string, channelID string, content strin
 	}
 }
 
-func getAction(t *testing.T, att *model.SlackAttachment, actionID string) *model.PostAction {
+func getAction(t *testing.T, att *model.MessageAttachment, actionID string) *model.PostAction {
 	t.Helper()
 	for _, action := range att.Actions {
 		if action.Id == actionID {
@@ -123,7 +123,7 @@ func TestBuild_Success(t *testing.T) {
 	assert.Equal(t, model.CommandResponseTypeEphemeral, response.ResponseType)
 	assert.Equal(t, constants.ListHeader, response.Text)
 	require.NotNil(t, response.Props)
-	attachments, ok := response.Props["attachments"].([]*model.SlackAttachment)
+	attachments, ok := response.Props["attachments"].([]*model.MessageAttachment)
 	require.True(t, ok)
 	require.Len(t, attachments, 2)
 
@@ -523,16 +523,16 @@ func TestEmptyResponse(t *testing.T) {
 }
 
 func TestSuccessResponse(t *testing.T) {
-	att1 := &model.SlackAttachment{Text: "att1"}
-	att2 := &model.SlackAttachment{Text: "att2"}
-	atts := []*model.SlackAttachment{att1, att2}
+	att1 := &model.MessageAttachment{Text: "att1"}
+	att2 := &model.MessageAttachment{Text: "att2"}
+	atts := []*model.MessageAttachment{att1, att2}
 
 	resp := successResponse(atts)
 
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
 	assert.Equal(t, constants.ListHeader, resp.Text)
 	require.NotNil(t, resp.Props)
-	respAtts, ok := resp.Props["attachments"].([]*model.SlackAttachment)
+	respAtts, ok := resp.Props["attachments"].([]*model.MessageAttachment)
 	require.True(t, ok)
 	assert.Equal(t, atts, respAtts)
 }
