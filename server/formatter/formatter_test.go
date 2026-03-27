@@ -14,9 +14,10 @@ func TestFormatScheduleSuccess(t *testing.T) {
 	tz := "UTC"
 	channel := "in channel: ~town-square"
 
-	expected := fmt.Sprintf("%s Scheduled message for %s (%s) %s", constants.EmojiSuccess, ts.Format(constants.TimeLayout), tz, channel)
+	timeStr := FormatUserFacingDateTime(ts, "en", false)
+	expected := fmt.Sprintf("%s Scheduled message for %s (%s) %s", constants.EmojiSuccess, timeStr, tz, channel)
 
-	got := FormatScheduleSuccess(ts, tz, channel)
+	got := FormatScheduleSuccess(ts, tz, channel, "en", false)
 	if got != expected {
 		t.Fatalf("FormatScheduleSuccess() = %q, want %q", got, expected)
 	}
@@ -48,9 +49,10 @@ func TestFormatScheduleError(t *testing.T) {
 	channel := "in channel: ~town-square"
 	errVal := errors.New("store failure")
 
-	expected := fmt.Sprintf("%s Error scheduling message for %s (%s) %s:  %v", constants.EmojiError, ts.Format(constants.TimeLayout), tz, channel, errVal)
+	timeStr := FormatUserFacingDateTime(ts, "en", false)
+	expected := fmt.Sprintf("%s Error scheduling message for %s (%s) %s:  %v", constants.EmojiError, timeStr, tz, channel, errVal)
 
-	got := FormatScheduleError(ts, tz, channel, errVal)
+	got := FormatScheduleError(ts, tz, channel, errVal, "en", false)
 	if got != expected {
 		t.Fatalf("FormatScheduleError() = %q, want %q", got, expected)
 	}
@@ -63,7 +65,7 @@ func TestFormatSchedulerFailure(t *testing.T) {
 
 	expected := fmt.Sprintf("%s Error scheduling message %s: %v -- original message: %s", constants.EmojiError, channel, postErr, orig)
 
-	got := FormatSchedulerFailure(channel, postErr, orig)
+	got := FormatSchedulerFailure(channel, postErr, orig, "en")
 	if got != expected {
 		t.Fatalf("FormatSchedulerFailure() = %q, want %q", got, expected)
 	}
@@ -74,9 +76,10 @@ func TestFormatListAttachmentHeader(t *testing.T) {
 	channel := "in channel: ~town-square"
 	msg := "hello world"
 
-	expected := fmt.Sprintf("##### %s\n%s\n\n%s", ts.Format(constants.TimeLayout), channel, msg)
+	timeStr := FormatUserFacingDateTime(ts, "en", false)
+	expected := fmt.Sprintf("##### %s\n%s\n\n%s", timeStr, channel, msg)
 
-	got := FormatListAttachmentHeader(ts, channel, msg)
+	got := FormatListAttachmentHeader(ts, channel, msg, "en", false)
 	if got != expected {
 		t.Fatalf("FormatListAttachmentHeader() = %q, want %q", got, expected)
 	}

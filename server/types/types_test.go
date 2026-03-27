@@ -12,6 +12,7 @@ func TestScheduledMessageJSONRoundTrip(t *testing.T) {
 		ID:             "id1",
 		UserID:         "user1",
 		ChannelID:      "channel1",
+		RootPostID:     "root1",
 		PostAt:         time.Unix(1700000000, 0).UTC(),
 		MessageContent: "hello",
 		Timezone:       "UTC",
@@ -30,6 +31,7 @@ func TestScheduledMessageJSONRoundTrip(t *testing.T) {
 	if original.ID != decoded.ID ||
 		original.UserID != decoded.UserID ||
 		original.ChannelID != decoded.ChannelID ||
+		original.RootPostID != decoded.RootPostID ||
 		!original.PostAt.Equal(decoded.PostAt) ||
 		original.MessageContent != decoded.MessageContent ||
 		original.Timezone != decoded.Timezone {

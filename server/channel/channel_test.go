@@ -329,9 +329,10 @@ func TestMakeChannelLink(t *testing.T) {
 	defer ctrl.Finish()
 
 	tests := []struct {
-		name string
-		info *ports.ChannelInfo
-		want string
+		name   string
+		locale string
+		info   *ports.ChannelInfo
+		want   string
 	}{
 		{
 			name: "unknown",
@@ -348,13 +349,23 @@ func TestMakeChannelLink(t *testing.T) {
 			want: "in direct message with: @alice",
 		},
 		{
+			name:   "direct_uk",
+			locale: "uk",
+			info: &ports.ChannelInfo{
+				ChannelID:   "d1",
+				ChannelType: model.ChannelTypeDirect,
+				ChannelLink: "@admin, @Mykola",
+			},
+			want: "у прямому повідомленні з: @admin, @Mykola",
+		},
+		{
 			name: "group",
 			info: &ports.ChannelInfo{
 				ChannelID:   "g1",
 				ChannelType: model.ChannelTypeGroup,
 				ChannelLink: "@alice, @bob",
 			},
-			want: "in direct message with: @alice, @bob",
+			want: "in group message with: @alice, @bob",
 		},
 		{
 			name: "public",
@@ -379,7 +390,11 @@ func TestMakeChannelLink(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			got := ch.MakeChannelLink(tc.info)
+			loc := tc.locale
+			if loc == "" {
+				loc = "en"
+			}
+			got := ch.MakeChannelLink(tc.info, loc)
 			if got != tc.want {
 				t.Fatalf("want %q, got %q", tc.want, got)
 			}

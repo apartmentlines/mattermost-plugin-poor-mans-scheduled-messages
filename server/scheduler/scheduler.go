@@ -14,30 +14,32 @@ import (
 
 // Scheduler delivers scheduled messages on a timed loop.
 type Scheduler struct {
-	logger ports.Logger
-	poster ports.PostService
-	store  ports.Store
-	linker ports.ChannelService
-	botID  string
-	clock  ports.Clock
-	ctx    context.Context
-	cancel context.CancelFunc
-	mu     sync.Mutex
+	logger  ports.Logger
+	poster  ports.PostService
+	store   ports.Store
+	linker  ports.ChannelService
+	display ports.UserDisplay
+	botID   string
+	clock   ports.Clock
+	ctx     context.Context
+	cancel  context.CancelFunc
+	mu      sync.Mutex
 }
 
 // New builds a Scheduler with the provided dependencies.
-func New(logger ports.Logger, poster ports.PostService, store ports.Store, linker ports.ChannelService, botID string, clk ports.Clock) *Scheduler {
+func New(logger ports.Logger, poster ports.PostService, store ports.Store, linker ports.ChannelService, display ports.UserDisplay, botID string, clk ports.Clock) *Scheduler {
 	logger.Debug("Creating new scheduler instance")
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Scheduler{
-		logger: logger,
-		poster: poster,
-		store:  store,
-		linker: linker,
-		botID:  botID,
-		clock:  clk,
-		ctx:    ctx,
-		cancel: cancel,
+		logger:  logger,
+		poster:  poster,
+		store:   store,
+		linker:  linker,
+		display: display,
+		botID:   botID,
+		clock:   clk,
+		ctx:     ctx,
+		cancel:  cancel,
 	}
 }
 
@@ -167,6 +169,7 @@ func (s *Scheduler) postMessage(msg *types.ScheduledMessage) error {
 	s.logger.Debug("Attempting to post scheduled message", "message_id", msg.ID, "user_id", msg.UserID, "channel_id", msg.ChannelID)
 	post := &model.Post{
 		ChannelId: msg.ChannelID,
+		RootId:    msg.RootPostID,
 		Message:   msg.MessageContent,
 		UserId:    msg.UserID,
 	}
@@ -180,8 +183,9 @@ func (s *Scheduler) postMessage(msg *types.ScheduledMessage) error {
 
 func (s *Scheduler) dmUserOnFailedMessage(msg *types.ScheduledMessage, postErr error) {
 	s.logger.Debug("Attempting to DM user about failed message", "message_id", msg.ID, "user_id", msg.UserID, "original_channel_id", msg.ChannelID, "post_error", postErr)
-	channelInfo := s.linker.MakeChannelLink(s.linker.GetInfoOrUnknown(msg.ChannelID))
-	message := formatter.FormatSchedulerFailure(channelInfo, postErr, msg.MessageContent)
+	locale, _ := s.display.LocaleAndMilitaryTime(msg.UserID)
+	channelInfo := s.linker.MakeChannelLink(s.linker.GetInfoOrUnknown(msg.ChannelID), locale)
+	message := formatter.FormatSchedulerFailure(channelInfo, postErr, msg.MessageContent, locale)
 	post := &model.Post{
 		Message: message,
 	}

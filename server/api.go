@@ -8,7 +8,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/userdisplay"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/formatter"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/i18n"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -22,6 +25,7 @@ func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Req
 	api := router.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/delete", p.UserDeleteMessage).Methods(http.MethodPost)
 	api.HandleFunc("/send", p.UserSendMessage).Methods(http.MethodPost)
+	api.HandleFunc("/schedule", p.UserScheduleComposer).Methods(http.MethodPost)
 	router.ServeHTTP(w, r)
 }
 
@@ -116,6 +120,64 @@ func (p *Plugin) UserSendMessage(w http.ResponseWriter, r *http.Request) {
 	p.logger.Debug("UserSendMessage request completed successfully", "user_id", userID, "message_id", msgID)
 }
 
+type scheduleComposerRequest struct {
+	ChannelID string `json:"channel_id"`
+	RootID    string `json:"root_id"`
+	Message   string `json:"message"`
+	PostAt    string `json:"post_at"`
+}
+
+type scheduleComposerResponse struct {
+	ID string `json:"id"`
+}
+
+func (p *Plugin) UserScheduleComposer(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get(constants.HTTPHeaderMattermostUserID)
+	p.logger.Debug("Handling UserScheduleComposer", "user_id", userID)
+
+	var req scheduleComposerRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		p.logger.Error("Failed to decode schedule composer body", "user_id", userID, "error", err)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	postAt, err := time.Parse(time.RFC3339, req.PostAt)
+	if err != nil {
+		p.logger.Error("Invalid post_at", "user_id", userID, "post_at", req.PostAt, "error", err)
+		http.Error(w, "post_at must be RFC3339 (e.g. 2026-04-01T15:04:05Z)", http.StatusBadRequest)
+		return
+	}
+
+	msg, schedErr := p.Command.ScheduleComposer(userID, req.ChannelID, req.RootID, req.Message, postAt)
+	if schedErr != nil {
+		p.logger.Error("ScheduleComposer failed", "user_id", userID, "error", schedErr)
+		http.Error(w, schedErr.Error(), http.StatusBadRequest)
+		return
+	}
+
+	loc, locErr := time.LoadLocation(msg.Timezone)
+	if locErr != nil {
+		loc = time.UTC
+	}
+	localTime := msg.PostAt.In(loc)
+	locale, military := userdisplay.FromAPI(p.API, userID)
+	channelLink := p.Channel.MakeChannelLink(p.Channel.GetInfoOrUnknown(msg.ChannelID), locale)
+	confirmation := &model.Post{
+		UserId:    userID,
+		ChannelId: req.ChannelID,
+		RootId:    req.RootID,
+		Message:   formatter.FormatScheduleSuccess(localTime, msg.Timezone, channelLink, locale, military),
+	}
+	p.poster.SendEphemeralPost(userID, confirmation)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(scheduleComposerResponse{ID: msg.ID}); err != nil {
+		p.logger.Error("Failed to write schedule response", "user_id", userID, "error", err)
+	}
+	p.logger.Info("Scheduled message from composer API", "user_id", userID, "message_id", msg.ID)
+}
+
 func (p *Plugin) buildEphemeralListUpdate(userID, postID, channelID string, updatedList *model.CommandResponse) *model.Post {
 	p.logger.Debug("Building ephemeral post update structure", "user_id", userID, "post_id", postID, "channel_id", channelID)
 	post := &model.Post{
@@ -193,13 +255,14 @@ func (p *Plugin) sendDeletionConfirmation(userID string, channelID string, delet
 		p.logger.Warn("Failed to load timezone for confirmation message, falling back to UTC", "user_id", userID, "message_id", deletedMsg.ID, "timezone", deletedMsg.Timezone, "error", err)
 		loc = time.UTC
 	}
-	humanTime := deletedMsg.PostAt.In(loc).Format(constants.TimeLayout)
+	locale, military := userdisplay.FromAPI(p.API, userID)
+	humanTime := formatter.FormatUserFacingDateTime(deletedMsg.PostAt.In(loc), locale, military)
 	p.logger.Debug("Formatted time for confirmation message", "user_id", userID, "message_id", deletedMsg.ID, "formatted_time", humanTime, "location", loc.String())
-	channelInfo := p.Channel.MakeChannelLink(p.Channel.GetInfoOrUnknown(deletedMsg.ChannelID))
+	channelInfo := p.Channel.MakeChannelLink(p.Channel.GetInfoOrUnknown(deletedMsg.ChannelID), locale)
 	confirmation := &model.Post{
 		UserId:    userID,
 		ChannelId: channelID,
-		Message:   fmt.Sprintf("%s Message scheduled for **%s** %s has been deleted.", constants.EmojiSuccess, humanTime, channelInfo),
+		Message:   i18n.ScheduledMessageDeleted(locale, constants.EmojiSuccess, humanTime, channelInfo),
 	}
 	p.logger.Debug("Sending ephemeral deletion confirmation post", "user_id", userID, "channel_id", channelID, "message_id", deletedMsg.ID)
 	p.poster.SendEphemeralPost(userID, confirmation)
@@ -225,13 +288,14 @@ func (p *Plugin) sendSendConfirmation(userID string, channelID string, msg *type
 		p.logger.Warn("Failed to load timezone for confirmation message, falling back to UTC", "user_id", userID, "message_id", msg.ID, "timezone", msg.Timezone, "error", err)
 		loc = time.UTC
 	}
-	humanTime := msg.PostAt.In(loc).Format(constants.TimeLayout)
+	locale, military := userdisplay.FromAPI(p.API, userID)
+	humanTime := formatter.FormatUserFacingDateTime(msg.PostAt.In(loc), locale, military)
 	p.logger.Debug("Formatted time for confirmation message", "user_id", userID, "message_id", msg.ID, "formatted_time", humanTime, "location", loc.String())
-	channelInfo := p.Channel.MakeChannelLink(p.Channel.GetInfoOrUnknown(msg.ChannelID))
+	channelInfo := p.Channel.MakeChannelLink(p.Channel.GetInfoOrUnknown(msg.ChannelID), locale)
 	confirmation := &model.Post{
 		UserId:    userID,
 		ChannelId: channelID,
-		Message:   fmt.Sprintf("%s Message scheduled for **%s** %s has been sent.", constants.EmojiSuccess, humanTime, channelInfo),
+		Message:   i18n.ScheduledMessageSent(locale, constants.EmojiSuccess, humanTime, channelInfo),
 	}
 	p.logger.Debug("Sending ephemeral send confirmation post", "user_id", userID, "channel_id", channelID, "message_id", msg.ID)
 	p.poster.SendEphemeralPost(userID, confirmation)

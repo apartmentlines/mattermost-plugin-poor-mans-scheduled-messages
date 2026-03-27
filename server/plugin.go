@@ -8,6 +8,7 @@ import (
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/adapters/mm"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/userdisplay"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/bot"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/channel"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/clock"
@@ -26,10 +27,18 @@ type ClockFactory func() ports.Clock
 
 type BotEnsurer func(ports.BotService, ports.BotProfileImageService) (string, error)
 
+type mattermostUserDisplay struct {
+	api plugin.API
+}
+
+func (m mattermostUserDisplay) LocaleAndMilitaryTime(userID string) (string, bool) {
+	return userdisplay.FromAPI(m.api, userID)
+}
+
 type AppBuilder interface {
 	NewChannel(cli *pluginapi.Client) *channel.Channel
 	NewStore(cli *pluginapi.Client, maxUserMessages int) ports.Store
-	NewScheduler(cli *pluginapi.Client, st ports.Store, ch ports.ChannelService, botID string, clk ports.Clock) *scheduler.Scheduler
+	NewScheduler(cli *pluginapi.Client, st ports.Store, ch ports.ChannelService, display ports.UserDisplay, botID string, clk ports.Clock) *scheduler.Scheduler
 	NewCommandHandler(
 		cli *pluginapi.Client,
 		st ports.Store,
@@ -50,8 +59,8 @@ func (prodBuilder) NewStore(cli *pluginapi.Client, maxUserMessages int) ports.St
 	return store.NewKVStore(&cli.Log, &cli.KV, mm.NewListMatchingService(), maxUserMessages)
 }
 
-func (prodBuilder) NewScheduler(cli *pluginapi.Client, st ports.Store, ch ports.ChannelService, botID string, clk ports.Clock) *scheduler.Scheduler {
-	return scheduler.New(&cli.Log, &cli.Post, st, ch, botID, clk)
+func (prodBuilder) NewScheduler(cli *pluginapi.Client, st ports.Store, ch ports.ChannelService, display ports.UserDisplay, botID string, clk ports.Clock) *scheduler.Scheduler {
+	return scheduler.New(&cli.Log, &cli.Post, st, ch, display, botID, clk)
 }
 
 func (prodBuilder) NewCommandHandler(
@@ -195,14 +204,17 @@ func (p *Plugin) initialize(botID string, clk ports.Clock, builder AppBuilder) e
 	p.Channel = builder.NewChannel(p.client)
 	p.logger.Debug("Initializing Store service", "max_user_messages", p.defaultMaxUserMessages)
 	p.Store = builder.NewStore(p.client, p.defaultMaxUserMessages)
+
+	display := mattermostUserDisplay{api: p.API}
+
 	p.logger.Debug("Initializing Scheduler service", "bot_id", p.BotID)
-	p.Scheduler = builder.NewScheduler(p.client, p.Store, p.Channel, p.BotID, clk)
+	p.Scheduler = builder.NewScheduler(p.client, p.Store, p.Channel, display, p.BotID, clk)
 
 	p.logger.Debug("Initializing List service")
-	listService := command.NewListService(p.logger, p.Store, p.Channel)
+	listService := command.NewListService(p.logger, p.Store, p.Channel, display)
 
 	p.logger.Debug("Initializing Schedule service", "max_user_messages", p.defaultMaxUserMessages)
-	scheduleService := command.NewScheduleService(p.logger, &p.client.User, p.Store, p.Channel, clk, p.defaultMaxUserMessages)
+	scheduleService := command.NewScheduleService(p.logger, &p.client.User, display, p.Store, p.Channel, clk, p.defaultMaxUserMessages)
 
 	p.logger.Debug("Initializing Command handler")
 	p.Command = builder.NewCommandHandler(

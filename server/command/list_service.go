@@ -17,15 +17,17 @@ type ListService struct {
 	logger  ports.Logger
 	store   ports.Store
 	channel ports.ChannelService
+	display ports.UserDisplay
 }
 
 // NewListService constructs a ListService.
-func NewListService(logger ports.Logger, store ports.Store, channel ports.ChannelService) *ListService {
+func NewListService(logger ports.Logger, store ports.Store, channel ports.ChannelService, display ports.UserDisplay) *ListService {
 	logger.Debug("Creating new ListService")
 	return &ListService{
 		logger:  logger,
 		store:   store,
 		channel: channel,
+		display: display,
 	}
 }
 
@@ -43,7 +45,7 @@ func (l *ListService) Build(userID string) *model.CommandResponse {
 	}
 
 	l.logger.Debug("Successfully loaded messages, building attachments", "user_id", userID, "count", len(msgs))
-	attachments := l.buildAttachments(msgs)
+	attachments := l.buildAttachments(userID, msgs)
 	l.logger.Debug("Successfully built attachments for message list", "user_id", userID, "count", len(attachments))
 	return successResponse(attachments)
 }
@@ -87,10 +89,11 @@ func (l *ListService) loadMessages(userID string) ([]*types.ScheduledMessage, er
 	return msgs, nil
 }
 
-func (l *ListService) buildAttachments(msgs []*types.ScheduledMessage) []*model.MessageAttachment {
+func (l *ListService) buildAttachments(userID string, msgs []*types.ScheduledMessage) []*model.MessageAttachment {
 	l.logger.Debug("Building attachments for scheduled messages", "count", len(msgs))
 	attachments := []*model.MessageAttachment{}
 	channelCache := make(map[string]*ports.ChannelInfo)
+	locale, military := l.display.LocaleAndMilitaryTime(userID)
 
 	for _, m := range msgs {
 		l.logger.Debug("Processing message for attachment", "message_id", m.ID, "channel_id", m.ChannelID)
@@ -104,8 +107,10 @@ func (l *ListService) buildAttachments(msgs []*types.ScheduledMessage) []*model.
 		localTime := m.PostAt.In(loc)
 		header := formatter.FormatListAttachmentHeader(
 			localTime,
-			l.channel.MakeChannelLink(channelCache[m.ChannelID]),
+			l.channel.MakeChannelLink(channelCache[m.ChannelID], locale),
 			m.MessageContent,
+			locale,
+			military,
 		)
 		attachments = append(attachments, createAttachment(header, m.ID))
 		l.logger.Debug("Created attachment for message", "message_id", m.ID)

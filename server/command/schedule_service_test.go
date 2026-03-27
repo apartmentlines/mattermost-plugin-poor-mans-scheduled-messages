@@ -57,6 +57,7 @@ func setupScheduleServiceTest(t *testing.T) (*ScheduleService, *testMocks) {
 	service := NewScheduleService(
 		mocks.logger,
 		mocks.userAPI,
+		testutil.FixedUserDisplay{},
 		mocks.store,
 		mocks.channel,
 		mocks.clock,
@@ -78,6 +79,7 @@ func TestNewScheduleService(t *testing.T) {
 
 	assert.Equal(t, mocks.logger, service.logger)
 	assert.Equal(t, mocks.userAPI, service.userAPI)
+	assert.Equal(t, testutil.FixedUserDisplay{}, service.display)
 	assert.Equal(t, mocks.store, service.store)
 	assert.Equal(t, mocks.channel, service.channel)
 	assert.Equal(t, mocks.clock, service.clock)
@@ -100,19 +102,20 @@ func TestBuild_HappyPath(t *testing.T) {
 			assert.Equal(t, testMsgID, msg.ID)
 			assert.Equal(t, testUserID, msg.UserID)
 			assert.Equal(t, testChannelID, msg.ChannelID)
+			assert.Equal(t, "", msg.RootPostID)
 			assert.True(t, expectedPostAtUTC.Equal(msg.PostAt), "Expected %v, got %v", expectedPostAtUTC, msg.PostAt)
 			assert.Equal(t, "Hello world", msg.MessageContent)
 			assert.Equal(t, testTimezone, msg.Timezone)
 			return nil
 		})
 	mocks.channel.EXPECT().GetInfoOrUnknown(testChannelID).Return(channelInfo)
-	mocks.channel.EXPECT().MakeChannelLink(channelInfo).Return(testFormattedLink)
+	mocks.channel.EXPECT().MakeChannelLink(channelInfo, "en").Return(testFormattedLink)
 
 	resp := service.Build(args, text)
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testTimezone, testFormattedLink)
+	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testTimezone, testFormattedLink, "en", false)
 	assert.Equal(t, expectedSuccessMsg, resp.Text)
 }
 
@@ -135,13 +138,13 @@ func TestBuild_TimezoneLogic_DefaultUsed_NoSettings(t *testing.T) {
 			return nil
 		})
 	mocks.channel.EXPECT().GetInfoOrUnknown(testChannelID).Return(channelInfo)
-	mocks.channel.EXPECT().MakeChannelLink(channelInfo).Return(testFormattedLink)
+	mocks.channel.EXPECT().MakeChannelLink(channelInfo, "en").Return(testFormattedLink)
 
 	resp := service.Build(args, text)
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testDefaultTZ, testFormattedLink)
+	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testDefaultTZ, testFormattedLink, "en", false)
 	assert.Equal(t, expectedSuccessMsg, resp.Text)
 }
 
@@ -170,13 +173,13 @@ func TestBuild_TimezoneLogic_ManualUsed(t *testing.T) {
 			return nil
 		})
 	mocks.channel.EXPECT().GetInfoOrUnknown(testChannelID).Return(channelInfo)
-	mocks.channel.EXPECT().MakeChannelLink(channelInfo).Return(testFormattedLink)
+	mocks.channel.EXPECT().MakeChannelLink(channelInfo, "en").Return(testFormattedLink)
 
 	resp := service.Build(args, text)
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, manualTZ, testFormattedLink)
+	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, manualTZ, testFormattedLink, "en", false)
 	assert.Equal(t, expectedSuccessMsg, resp.Text)
 }
 
@@ -211,13 +214,13 @@ func TestBuild_PersistenceFailure_StoreSaveError(t *testing.T) {
 	mocks.store.EXPECT().GenerateMessageID().Return(testMsgID)
 	mocks.store.EXPECT().SaveScheduledMessage(testUserID, gomock.AssignableToTypeOf(&types.ScheduledMessage{})).Return(saveErr)
 	mocks.channel.EXPECT().GetInfoOrUnknown(testChannelID).Return(channelInfo)
-	mocks.channel.EXPECT().MakeChannelLink(channelInfo).Return(testFormattedLink)
+	mocks.channel.EXPECT().MakeChannelLink(channelInfo, "en").Return(testFormattedLink)
 
 	resp := service.Build(args, text)
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedFormattedErr := formatter.FormatScheduleError(expectedPostAtLocal, testTimezone, testFormattedLink, saveErr)
+	expectedFormattedErr := formatter.FormatScheduleError(expectedPostAtLocal, testTimezone, testFormattedLink, saveErr, "en", false)
 	assert.Equal(t, expectedFormattedErr, resp.Text)
 }
 
@@ -246,13 +249,13 @@ func TestBuild_TimezoneLogic_AutomaticUsed(t *testing.T) {
 			return nil
 		})
 	mocks.channel.EXPECT().GetInfoOrUnknown(testChannelID).Return(channelInfo)
-	mocks.channel.EXPECT().MakeChannelLink(channelInfo).Return(testFormattedLink)
+	mocks.channel.EXPECT().MakeChannelLink(channelInfo, "en").Return(testFormattedLink)
 
 	resp := service.Build(args, text)
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, autoTZ, testFormattedLink)
+	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, autoTZ, testFormattedLink, "en", false)
 	assert.Equal(t, expectedSuccessMsg, resp.Text)
 }
 
@@ -312,13 +315,13 @@ func TestBuild_PreparationFailure_UserTimezoneFetchError(t *testing.T) {
 			return nil
 		})
 	mocks.channel.EXPECT().GetInfoOrUnknown(testChannelID).Return(channelInfo)
-	mocks.channel.EXPECT().MakeChannelLink(channelInfo).Return(testFormattedLink)
+	mocks.channel.EXPECT().MakeChannelLink(channelInfo, "en").Return(testFormattedLink)
 
 	resp := service.Build(args, text)
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testDefaultTZ, testFormattedLink)
+	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testDefaultTZ, testFormattedLink, "en", false)
 	assert.Equal(t, expectedSuccessMsg, resp.Text) // Response should show UTC
 }
 
@@ -342,13 +345,13 @@ func TestBuild_PreparationFailure_InvalidUserTimezone(t *testing.T) {
 			return nil
 		})
 	mocks.channel.EXPECT().GetInfoOrUnknown(testChannelID).Return(channelInfo)
-	mocks.channel.EXPECT().MakeChannelLink(channelInfo).Return(testFormattedLink)
+	mocks.channel.EXPECT().MakeChannelLink(channelInfo, "en").Return(testFormattedLink)
 
 	resp := service.Build(args, text)
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testDefaultTZ, testFormattedLink) // Show UTC in response
+	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testDefaultTZ, testFormattedLink, "en", false) // Show UTC in response
 	assert.Equal(t, expectedSuccessMsg, resp.Text)
 }
 
@@ -401,4 +404,44 @@ func TestBuild_ValidationFailure_ErrorCheckingMaxUserMessages(t *testing.T) {
 	expectedErr := fmt.Errorf("failed to check message count: %w", storeErr)
 	expectedFormattedErr := formatter.FormatScheduleValidationError(expectedErr)
 	assert.Equal(t, expectedFormattedErr, resp.Text)
+}
+
+func TestScheduleComposer_HappyPath(t *testing.T) {
+	service, mocks := setupScheduleServiceTest(t)
+	chID := strings.Repeat("c", 26)
+	rootID := strings.Repeat("r", 26)
+	postAt := testNow.Add(2 * time.Hour).UTC()
+
+	mocks.store.EXPECT().ListUserMessageIDs(testUserID).Return([]string{}, nil)
+	mocks.userAPI.EXPECT().Get(testUserID).Return(&model.User{Timezone: map[string]string{}}, nil)
+	mocks.store.EXPECT().GenerateMessageID().Return(testMsgID)
+	mocks.store.EXPECT().SaveScheduledMessage(testUserID, gomock.AssignableToTypeOf(&types.ScheduledMessage{})).
+		DoAndReturn(func(_ string, msg *types.ScheduledMessage) error {
+			assert.Equal(t, rootID, msg.RootPostID)
+			assert.Equal(t, "hello", msg.MessageContent)
+			assert.Equal(t, chID, msg.ChannelID)
+			assert.True(t, postAt.Equal(msg.PostAt))
+			return nil
+		})
+
+	msg, err := service.ScheduleComposer(testUserID, chID, rootID, "hello", postAt)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+	assert.Equal(t, testMsgID, msg.ID)
+}
+
+func TestScheduleComposer_InvalidChannelID(t *testing.T) {
+	service, _ := setupScheduleServiceTest(t)
+	postAt := testNow.Add(time.Hour).UTC()
+	_, err := service.ScheduleComposer(testUserID, "tooshort", "", "hello", postAt)
+	require.Error(t, err)
+}
+
+func TestScheduleComposer_TimeTooSoon(t *testing.T) {
+	service, mocks := setupScheduleServiceTest(t)
+	chID := strings.Repeat("c", 26)
+	mocks.store.EXPECT().ListUserMessageIDs(testUserID).Return([]string{}, nil)
+	postAt := testNow.Add(10 * time.Second).UTC()
+	_, err := service.ScheduleComposer(testUserID, chID, "", "hello", postAt)
+	require.Error(t, err)
 }

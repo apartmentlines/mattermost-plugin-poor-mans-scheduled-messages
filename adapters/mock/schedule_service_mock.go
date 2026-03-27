@@ -6,7 +6,9 @@ package mock
 
 import (
 	reflect "reflect"
+	time "time"
 
+	types "github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	gomock "github.com/golang/mock/gomock"
 	model "github.com/mattermost/mattermost/server/public/model"
 )
@@ -46,4 +48,19 @@ func (m *MockScheduleService) Build(arg0 *model.CommandArgs, arg1 string) *model
 func (mr *MockScheduleServiceMockRecorder) Build(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Build", reflect.TypeOf((*MockScheduleService)(nil).Build), arg0, arg1)
+}
+
+// ScheduleComposer mocks base method.
+func (m *MockScheduleService) ScheduleComposer(arg0, arg1, arg2, arg3 string, arg4 time.Time) (*types.ScheduledMessage, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ScheduleComposer", arg0, arg1, arg2, arg3, arg4)
+	ret0, _ := ret[0].(*types.ScheduledMessage)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ScheduleComposer indicates an expected call of ScheduleComposer.
+func (mr *MockScheduleServiceMockRecorder) ScheduleComposer(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScheduleComposer", reflect.TypeOf((*MockScheduleService)(nil).ScheduleComposer), arg0, arg1, arg2, arg3, arg4)
 }
