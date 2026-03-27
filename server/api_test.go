@@ -15,6 +15,8 @@ import (
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/testutil"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/formatter"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/i18n"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/golang/mock/gomock"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -25,9 +27,10 @@ import (
 var expectedAttachments = []*model.MessageAttachment{{Text: "dummy attachment data"}}
 
 type mockCommand struct {
-	UserDeleteMessageFunc  func(userID, msgID string) (*types.ScheduledMessage, error)
-	UserSendMessageFunc    func(userID, msgID string) (*types.ScheduledMessage, error)
-	BuildEphemeralListFunc func(args *model.CommandArgs) *model.CommandResponse
+	UserDeleteMessageFunc   func(userID, msgID string) (*types.ScheduledMessage, error)
+	UserSendMessageFunc     func(userID, msgID string) (*types.ScheduledMessage, error)
+	ScheduleComposerFunc    func(userID, channelID, rootID, message string, postAt time.Time) (*types.ScheduledMessage, error)
+	BuildEphemeralListFunc  func(args *model.CommandArgs) *model.CommandResponse
 }
 
 func (m *mockCommand) Register() error { panic("not implemented") } // Not needed by api.go
@@ -51,6 +54,12 @@ func (m *mockCommand) BuildEphemeralList(args *model.CommandArgs) *model.Command
 		return m.BuildEphemeralListFunc(args)
 	}
 	panic("BuildEphemeralListFunc not set")
+}
+func (m *mockCommand) ScheduleComposer(userID, channelID, rootID, message string, postAt time.Time) (*types.ScheduledMessage, error) {
+	if m.ScheduleComposerFunc != nil {
+		return m.ScheduleComposerFunc(userID, channelID, rootID, message, postAt)
+	}
+	panic("ScheduleComposerFunc not set")
 }
 
 func setupPluginForAPI(t *testing.T, ctrl *gomock.Controller) (*Plugin, *mock.MockPostService, *mock.MockChannelService, *mock.MockScheduler, *mockCommand) {
@@ -377,7 +386,7 @@ func TestServeHTTP_Delete_HappyPath_NormalTimezone(t *testing.T) { // TC-3.5
 
 	// Channel Mock Setup
 	channelMock.EXPECT().GetInfoOrUnknown(deletedMsgChannelID).Return(&ports.ChannelInfo{ChannelID: deletedMsgChannelID})
-	channelMock.EXPECT().MakeChannelLink(gomock.Any()).DoAndReturn(func(info *ports.ChannelInfo) string {
+	channelMock.EXPECT().MakeChannelLink(gomock.Any(), gomock.Any()).DoAndReturn(func(info *ports.ChannelInfo, _ string) string {
 		assert.Equal(t, deletedMsgChannelID, info.ChannelID)
 		return expectedChannelLink
 	})
@@ -392,8 +401,8 @@ func TestServeHTTP_Delete_HappyPath_NormalTimezone(t *testing.T) { // TC-3.5
 	postMock.EXPECT().SendEphemeralPost(userID, gomock.Any()).Do(func(_ string, post *model.Post) {
 		assert.Equal(t, userID, post.UserId)
 		assert.Equal(t, channelID, post.ChannelId)
-		expectedTimeStr := expectedTime.Format(constants.TimeLayout)
-		expectedMsg := fmt.Sprintf("%s Message scheduled for **%s** %s has been deleted.", constants.EmojiSuccess, expectedTimeStr, expectedChannelLink)
+		expectedTimeStr := formatter.FormatUserFacingDateTime(expectedTime, "en", false)
+		expectedMsg := i18n.ScheduledMessageDeleted("en", constants.EmojiSuccess, expectedTimeStr, expectedChannelLink)
 		assert.Equal(t, expectedMsg, post.Message)
 	})
 
@@ -437,14 +446,14 @@ func TestServeHTTP_Delete_HappyPath_InvalidTimezoneFallback(t *testing.T) { // T
 
 	// Channel Mock Setup
 	channelMock.EXPECT().GetInfoOrUnknown(deletedMsgChannelID).Return(&ports.ChannelInfo{ChannelID: deletedMsgChannelID})
-	channelMock.EXPECT().MakeChannelLink(gomock.Any()).Return(expectedChannelLink)
+	channelMock.EXPECT().MakeChannelLink(gomock.Any(), gomock.Any()).Return(expectedChannelLink)
 
 	// Post Mock Setup
 	postMock.EXPECT().UpdateEphemeralPost(userID, gomock.Any()) // Check details implicitly via TC-3.5
 	postMock.EXPECT().SendEphemeralPost(userID, gomock.Any()).Do(func(_ string, post *model.Post) {
 		// Expect UTC time format because the timezone was invalid
-		expectedTimeStr := expectedTime.Format(constants.TimeLayout) // Format in UTC
-		expectedMsg := fmt.Sprintf("%s Message scheduled for **%s** %s has been deleted.", constants.EmojiSuccess, expectedTimeStr, expectedChannelLink)
+		expectedTimeStr := formatter.FormatUserFacingDateTime(expectedTime.UTC(), "en", false)
+		expectedMsg := i18n.ScheduledMessageDeleted("en", constants.EmojiSuccess, expectedTimeStr, expectedChannelLink)
 		assert.Equal(t, expectedMsg, post.Message)
 	})
 
@@ -628,7 +637,7 @@ func TestServeHTTP_Send_HappyPath_NormalTimezone(t *testing.T) {
 
 	schedulerMock.EXPECT().SendNow(msg).Return(nil)
 	channelMock.EXPECT().GetInfoOrUnknown(sendMsgChannelID).Return(&ports.ChannelInfo{ChannelID: sendMsgChannelID})
-	channelMock.EXPECT().MakeChannelLink(gomock.Any()).DoAndReturn(func(info *ports.ChannelInfo) string {
+	channelMock.EXPECT().MakeChannelLink(gomock.Any(), gomock.Any()).DoAndReturn(func(info *ports.ChannelInfo, _ string) string {
 		assert.Equal(t, sendMsgChannelID, info.ChannelID)
 		return expectedChannelLink
 	})
@@ -642,8 +651,8 @@ func TestServeHTTP_Send_HappyPath_NormalTimezone(t *testing.T) {
 	postMock.EXPECT().SendEphemeralPost(userID, gomock.Any()).Do(func(_ string, post *model.Post) {
 		assert.Equal(t, userID, post.UserId)
 		assert.Equal(t, channelID, post.ChannelId)
-		expectedTimeStr := expectedTime.Format(constants.TimeLayout)
-		expectedMsg := fmt.Sprintf("%s Message scheduled for **%s** %s has been sent.", constants.EmojiSuccess, expectedTimeStr, expectedChannelLink)
+		expectedTimeStr := formatter.FormatUserFacingDateTime(expectedTime, "en", false)
+		expectedMsg := i18n.ScheduledMessageSent("en", constants.EmojiSuccess, expectedTimeStr, expectedChannelLink)
 		assert.Equal(t, expectedMsg, post.Message)
 	})
 
@@ -698,13 +707,14 @@ func TestSendDeletionConfirmation_NormalTimezone(t *testing.T) { // TC-5.1
 	expectedChannelLink := "in channel ~some-channel"
 
 	channelMock.EXPECT().GetInfoOrUnknown(deletedMsgChannelID).Return(&ports.ChannelInfo{ChannelID: deletedMsgChannelID})
-	channelMock.EXPECT().MakeChannelLink(gomock.Any()).Return(expectedChannelLink)
+	channelMock.EXPECT().MakeChannelLink(gomock.Any(), gomock.Any()).Return(expectedChannelLink)
 
 	postMock.EXPECT().SendEphemeralPost(userID, gomock.Any()).Do(func(_ string, post *model.Post) {
 		assert.Equal(t, userID, post.UserId)
 		assert.Equal(t, channelID, post.ChannelId)
-		expectedTimeStr := postAt.Format(constants.TimeLayout)
-		expectedMsg := fmt.Sprintf("%s Message scheduled for **%s** %s has been deleted.", constants.EmojiSuccess, expectedTimeStr, expectedChannelLink)
+		locDel, _ := time.LoadLocation(deletedMsg.Timezone)
+		expectedTimeStr := formatter.FormatUserFacingDateTime(deletedMsg.PostAt.In(locDel), "en", false)
+		expectedMsg := i18n.ScheduledMessageDeleted("en", constants.EmojiSuccess, expectedTimeStr, expectedChannelLink)
 		assert.Equal(t, expectedMsg, post.Message)
 	})
 
@@ -732,13 +742,14 @@ func TestSendSendConfirmation_NormalTimezone(t *testing.T) {
 	expectedChannelLink := "in channel ~some-channel"
 
 	channelMock.EXPECT().GetInfoOrUnknown(sendMsgChannelID).Return(&ports.ChannelInfo{ChannelID: sendMsgChannelID})
-	channelMock.EXPECT().MakeChannelLink(gomock.Any()).Return(expectedChannelLink)
+	channelMock.EXPECT().MakeChannelLink(gomock.Any(), gomock.Any()).Return(expectedChannelLink)
 
 	postMock.EXPECT().SendEphemeralPost(userID, gomock.Any()).Do(func(_ string, post *model.Post) {
 		assert.Equal(t, userID, post.UserId)
 		assert.Equal(t, channelID, post.ChannelId)
-		expectedTimeStr := postAt.Format(constants.TimeLayout)
-		expectedMsg := fmt.Sprintf("%s Message scheduled for **%s** %s has been sent.", constants.EmojiSuccess, expectedTimeStr, expectedChannelLink)
+		locSend, _ := time.LoadLocation(sendMsg.Timezone)
+		expectedTimeStr := formatter.FormatUserFacingDateTime(sendMsg.PostAt.In(locSend), "en", false)
+		expectedMsg := i18n.ScheduledMessageSent("en", constants.EmojiSuccess, expectedTimeStr, expectedChannelLink)
 		assert.Equal(t, expectedMsg, post.Message)
 	})
 
@@ -849,13 +860,13 @@ func TestSendDeletionConfirmation_InvalidTimezoneFallback(t *testing.T) { // TC-
 	expectedChannelLink := "in channel ~some-channel"
 
 	channelMock.EXPECT().GetInfoOrUnknown(deletedMsgChannelID).Return(&ports.ChannelInfo{ChannelID: deletedMsgChannelID})
-	channelMock.EXPECT().MakeChannelLink(gomock.Any()).Return(expectedChannelLink)
+	channelMock.EXPECT().MakeChannelLink(gomock.Any(), gomock.Any()).Return(expectedChannelLink)
 
 	postMock.EXPECT().SendEphemeralPost(userID, gomock.Any()).Do(func(_ string, post *model.Post) {
 		assert.Equal(t, userID, post.UserId)
 		assert.Equal(t, channelID, post.ChannelId)
-		expectedTimeStr := postAt.Format(constants.TimeLayout) // Format in UTC
-		expectedMsg := fmt.Sprintf("%s Message scheduled for **%s** %s has been deleted.", constants.EmojiSuccess, expectedTimeStr, expectedChannelLink)
+		expectedTimeStr := formatter.FormatUserFacingDateTime(postAt.UTC(), "en", false)
+		expectedMsg := i18n.ScheduledMessageDeleted("en", constants.EmojiSuccess, expectedTimeStr, expectedChannelLink)
 		assert.Equal(t, expectedMsg, post.Message)
 	})
 
@@ -882,15 +893,95 @@ func TestSendSendConfirmation_InvalidTimezoneFallback(t *testing.T) {
 	expectedChannelLink := "in channel ~some-channel"
 
 	channelMock.EXPECT().GetInfoOrUnknown(sendMsgChannelID).Return(&ports.ChannelInfo{ChannelID: sendMsgChannelID})
-	channelMock.EXPECT().MakeChannelLink(gomock.Any()).Return(expectedChannelLink)
+	channelMock.EXPECT().MakeChannelLink(gomock.Any(), gomock.Any()).Return(expectedChannelLink)
 
 	postMock.EXPECT().SendEphemeralPost(userID, gomock.Any()).Do(func(_ string, post *model.Post) {
 		assert.Equal(t, userID, post.UserId)
 		assert.Equal(t, channelID, post.ChannelId)
-		expectedTimeStr := postAt.Format(constants.TimeLayout)
-		expectedMsg := fmt.Sprintf("%s Message scheduled for **%s** %s has been sent.", constants.EmojiSuccess, expectedTimeStr, expectedChannelLink)
+		expectedTimeStr := formatter.FormatUserFacingDateTime(postAt.UTC(), "en", false)
+		expectedMsg := i18n.ScheduledMessageSent("en", constants.EmojiSuccess, expectedTimeStr, expectedChannelLink)
 		assert.Equal(t, expectedMsg, post.Message)
 	})
 
 	p.sendSendConfirmation(userID, channelID, sendMsg)
+}
+
+const testValidChannel26 = "11111111111111111111111111"
+
+func TestUserScheduleComposer_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	p, postMock, channelMock, _, cmdMock := setupPluginForAPI(t, ctrl)
+
+	userID := testValidChannel26
+	channelID := testValidChannel26
+	rootID := "22222222222222222222222222"
+	postAt := time.Now().UTC().Add(2 * time.Hour).Truncate(time.Second)
+	msg := &types.ScheduledMessage{
+		ID:             "msgsched1abcdefghijklmno",
+		UserID:         userID,
+		ChannelID:      channelID,
+		PostAt:         postAt,
+		MessageContent: "hello",
+		Timezone:       "UTC",
+	}
+
+	body := map[string]string{
+		"channel_id": channelID,
+		"root_id":    rootID,
+		"message":    "hello",
+		"post_at":    postAt.Format(time.RFC3339),
+	}
+	b, err := json.Marshal(body)
+	require.NoError(t, err)
+
+	cmdMock.ScheduleComposerFunc = func(uid, cid, rid, m string, at time.Time) (*types.ScheduledMessage, error) {
+		assert.Equal(t, userID, uid)
+		assert.Equal(t, channelID, cid)
+		assert.Equal(t, rootID, rid)
+		assert.Equal(t, "hello", m)
+		assert.True(t, at.Equal(postAt.UTC()))
+		return msg, nil
+	}
+
+	channelMock.EXPECT().GetInfoOrUnknown(channelID).Return(&ports.ChannelInfo{ChannelID: channelID})
+	channelMock.EXPECT().MakeChannelLink(gomock.Any(), gomock.Any()).Return("in channel ~town-square")
+
+	postMock.EXPECT().SendEphemeralPost(userID, gomock.Any()).Do(func(_ string, post *model.Post) {
+		assert.Equal(t, channelID, post.ChannelId)
+		assert.Equal(t, rootID, post.RootId)
+		loc, lerr := time.LoadLocation(msg.Timezone)
+		require.NoError(t, lerr)
+		localTime := msg.PostAt.In(loc)
+		expectedMsg := formatter.FormatScheduleSuccess(localTime, msg.Timezone, "in channel ~town-square", "en", false)
+		assert.Equal(t, expectedMsg, post.Message)
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/schedule", bytes.NewReader(b))
+	req.Header.Set(constants.HTTPHeaderMattermostUserID, userID)
+	rr := httptest.NewRecorder()
+	p.ServeHTTP(nil, rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var resp scheduleComposerResponse
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.Equal(t, msg.ID, resp.ID)
+}
+
+func TestUserScheduleComposer_InvalidRFC3339(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	p, _, _, _, cmdMock := setupPluginForAPI(t, ctrl)
+	cmdMock.ScheduleComposerFunc = func(string, string, string, string, time.Time) (*types.ScheduledMessage, error) {
+		t.Fatal("ScheduleComposer should not be called")
+		return nil, nil
+	}
+
+	body := `{"channel_id":"` + testValidChannel26 + `","message":"x","post_at":"not-a-date"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/schedule", strings.NewReader(body))
+	req.Header.Set(constants.HTTPHeaderMattermostUserID, testValidChannel26)
+	rr := httptest.NewRecorder()
+	p.ServeHTTP(nil, rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }

@@ -34,6 +34,20 @@ func (m *MockScheduler) EXPECT() *MockSchedulerMockRecorder {
 	return m.recorder
 }
 
+// SendNow mocks base method.
+func (m *MockScheduler) SendNow(arg0 *types.ScheduledMessage) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendNow", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendNow indicates an expected call of SendNow.
+func (mr *MockSchedulerMockRecorder) SendNow(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendNow", reflect.TypeOf((*MockScheduler)(nil).SendNow), arg0)
+}
+
 // Start mocks base method.
 func (m *MockScheduler) Start() {
 	m.ctrl.T.Helper()
@@ -56,18 +70,4 @@ func (m *MockScheduler) Stop() {
 func (mr *MockSchedulerMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockScheduler)(nil).Stop))
-}
-
-// SendNow mocks base method.
-func (m *MockScheduler) SendNow(arg0 *types.ScheduledMessage) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendNow", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SendNow indicates an expected call of SendNow.
-func (mr *MockSchedulerMockRecorder) SendNow(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendNow", reflect.TypeOf((*MockScheduler)(nil).SendNow), arg0)
 }

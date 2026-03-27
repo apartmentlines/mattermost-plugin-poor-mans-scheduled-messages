@@ -1,6 +1,8 @@
 package ports
 
 import (
+	"time"
+
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/clock"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -37,7 +39,7 @@ type ChannelInfo struct {
 // ChannelService provides channel metadata and formatting helpers.
 type ChannelService interface {
 	GetInfoOrUnknown(channelID string) *ChannelInfo
-	MakeChannelLink(info *ChannelInfo) string
+	MakeChannelLink(info *ChannelInfo, locale string) string
 }
 
 // ChannelDataService provides channel data access.
@@ -59,6 +61,11 @@ type SlashCommandService interface {
 // UserService fetches user data.
 type UserService interface {
 	Get(userID string) (*model.User, error)
+}
+
+// UserDisplay resolves locale and 24-hour clock preference for user-visible formatting.
+type UserDisplay interface {
+	LocaleAndMilitaryTime(userID string) (locale string, military bool)
 }
 
 // KVService abstracts key-value storage.
@@ -110,4 +117,5 @@ type ListService interface {
 // ScheduleService schedules new messages.
 type ScheduleService interface {
 	Build(args *model.CommandArgs, text string) *model.CommandResponse
+	ScheduleComposer(userID, channelID, rootPostID, message string, postAtUTC time.Time) (*types.ScheduledMessage, error)
 }

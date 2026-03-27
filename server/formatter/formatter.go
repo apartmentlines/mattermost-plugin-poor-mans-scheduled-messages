@@ -6,11 +6,13 @@ import (
 	"time"
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/i18n"
 )
 
 // FormatScheduleSuccess renders a success message for scheduling.
-func FormatScheduleSuccess(postAt time.Time, tz, channelLink string) string {
-	return fmt.Sprintf("%s Scheduled message for %s (%s) %s", constants.EmojiSuccess, postAt.Format(constants.TimeLayout), tz, channelLink)
+func FormatScheduleSuccess(postAt time.Time, tz, channelLink, locale string, military bool) string {
+	ts := FormatUserFacingDateTime(postAt, locale, military)
+	return i18n.ScheduleSuccess(locale, constants.EmojiSuccess, ts, tz, channelLink)
 }
 
 // FormatEmptyCommandError renders a message for empty input.
@@ -25,16 +27,18 @@ func FormatScheduleValidationError(err error) string {
 }
 
 // FormatScheduleError renders a scheduling error message.
-func FormatScheduleError(postAt time.Time, tz, channelLink string, err error) string {
-	return fmt.Sprintf("%s Error scheduling message for %s (%s) %s:  %v", constants.EmojiError, postAt.Format(constants.TimeLayout), tz, channelLink, err)
+func FormatScheduleError(postAt time.Time, tz, channelLink string, err error, locale string, military bool) string {
+	ts := FormatUserFacingDateTime(postAt, locale, military)
+	return i18n.SchedulePersistError(locale, constants.EmojiError, ts, tz, channelLink, err)
 }
 
 // FormatSchedulerFailure renders a scheduler failure DM message.
-func FormatSchedulerFailure(channelLink string, postErr error, originalMsg string) string {
-	return fmt.Sprintf("%s Error scheduling message %s: %v -- original message: %s", constants.EmojiError, channelLink, postErr, originalMsg)
+func FormatSchedulerFailure(channelLink string, postErr error, originalMsg string, locale string) string {
+	return i18n.SchedulerFailure(locale, constants.EmojiError, channelLink, postErr, originalMsg)
 }
 
 // FormatListAttachmentHeader renders list attachment header text.
-func FormatListAttachmentHeader(postAt time.Time, channelLink, messageContent string) string {
-	return fmt.Sprintf("##### %s\n%s\n\n%s", postAt.Format(constants.TimeLayout), channelLink, messageContent)
+func FormatListAttachmentHeader(postAt time.Time, channelLink, messageContent, locale string, military bool) string {
+	ts := FormatUserFacingDateTime(postAt, locale, military)
+	return fmt.Sprintf("##### %s\n%s\n\n%s", ts, channelLink, messageContent)
 }

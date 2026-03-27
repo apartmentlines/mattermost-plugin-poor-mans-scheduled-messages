@@ -4,6 +4,7 @@ package command
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
@@ -117,6 +118,12 @@ func (h *Handler) UserSendMessage(userID string, msgID string) (*types.Scheduled
 	}
 	h.logger.Info("Successfully validated scheduled message for send", "user_id", userID, "message_id", msgID)
 	return msg, nil
+}
+
+// ScheduleComposer schedules a message from the webapp composer UI.
+func (h *Handler) ScheduleComposer(userID, channelID, rootPostID, message string, postAtUTC time.Time) (*types.ScheduledMessage, error) {
+	h.logger.Debug("ScheduleComposer via handler", "user_id", userID, "channel_id", channelID)
+	return h.scheduleService.ScheduleComposer(userID, channelID, rootPostID, message, postAtUTC)
 }
 
 func (h *Handler) scheduleDefinition() *model.Command {

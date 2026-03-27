@@ -241,7 +241,10 @@ ifneq ($(HAS_WEBAPP),)
 	mkdir -p dist/$(PLUGIN_ID)/webapp
 	cp -r webapp/dist dist/$(PLUGIN_ID)/webapp/
 endif
-	cd dist && tar -cvzf $(BUNDLE_NAME) $(PLUGIN_ID)
+	# Flat archive (plugin.json at tar root): avoids install failures when the archive
+	# has more than one top-level entry (e.g. __MACOSX) and Mattermost skips descending
+	# into the plugin directory.
+	cd dist/$(PLUGIN_ID) && tar -cvzf ../$(BUNDLE_NAME) .
 
 	@echo plugin built at: dist/$(BUNDLE_NAME)
 

@@ -49,15 +49,15 @@ func (mr *MockChannelServiceMockRecorder) GetInfoOrUnknown(arg0 interface{}) *go
 }
 
 // MakeChannelLink mocks base method.
-func (m *MockChannelService) MakeChannelLink(arg0 *ports.ChannelInfo) string {
+func (m *MockChannelService) MakeChannelLink(arg0 *ports.ChannelInfo, arg1 string) string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "MakeChannelLink", arg0)
+	ret := m.ctrl.Call(m, "MakeChannelLink", arg0, arg1)
 	ret0, _ := ret[0].(string)
 	return ret0
 }
 
 // MakeChannelLink indicates an expected call of MakeChannelLink.
-func (mr *MockChannelServiceMockRecorder) MakeChannelLink(arg0 interface{}) *gomock.Call {
+func (mr *MockChannelServiceMockRecorder) MakeChannelLink(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MakeChannelLink", reflect.TypeOf((*MockChannelService)(nil).MakeChannelLink), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MakeChannelLink", reflect.TypeOf((*MockChannelService)(nil).MakeChannelLink), arg0, arg1)
 }

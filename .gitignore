@@ -1,5 +1,6 @@
 bin/
 dist/
+webapp/node_modules/
 webapp/src/manifest.ts
 server/manifest.go
 
