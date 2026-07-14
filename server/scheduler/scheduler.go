@@ -3,6 +3,7 @@ package scheduler
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -165,6 +166,21 @@ func (s *Scheduler) deleteSchedule(msg *types.ScheduledMessage) error {
 
 func (s *Scheduler) postMessage(msg *types.ScheduledMessage) error {
 	s.logger.Debug("Attempting to post scheduled message", "message_id", msg.ID, "user_id", msg.UserID, "channel_id", msg.ChannelID)
+
+	// Re-verify channel access at delivery time. The user's membership was
+	// implied when they scheduled the message, but they may have since been
+	// removed from the channel or left the team. Only block delivery when the
+	// user is positively confirmed to no longer be a member; on an ambiguous
+	// lookup failure we proceed (fail open) so a transient API error does not
+	// suppress legitimate deliveries.
+	isMember, memberErr := s.linker.IsMember(msg.ChannelID, msg.UserID)
+	if memberErr != nil {
+		s.logger.Warn("Could not verify channel membership; proceeding with delivery", "message_id", msg.ID, "user_id", msg.UserID, "channel_id", msg.ChannelID, "error", memberErr)
+	} else if !isMember {
+		s.logger.Warn("User is no longer a member of the target channel; skipping delivery", "message_id", msg.ID, "user_id", msg.UserID, "channel_id", msg.ChannelID)
+		return fmt.Errorf("you are no longer a member of the target channel")
+	}
+
 	post := &model.Post{
 		ChannelId: msg.ChannelID,
 		Message:   msg.MessageContent,

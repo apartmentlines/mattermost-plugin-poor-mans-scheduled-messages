@@ -48,6 +48,7 @@ func TestProcessDueMessages_PostSuccess(t *testing.T) {
 	mockKV.EXPECT().Get(userIndexKey, gomock.Any()).SetArg(1, []string{msg.ID}).Return(nil)
 	mockKV.EXPECT().Set(userIndexKey, gomock.Eq([]string{})).Return(true, nil)
 	mockKV.EXPECT().Delete(msgKey).Return(nil)
+	mockChannel.EXPECT().IsMember(msg.ChannelID, msg.UserID).Return(true, nil)
 	mockPoster.EXPECT().CreatePost(gomock.Eq(&model.Post{
 		ChannelId: msg.ChannelID,
 		Message:   msg.MessageContent,
@@ -88,6 +89,7 @@ func TestProcessDueMessages_PostFailure(t *testing.T) {
 	mockKV.EXPECT().Get(userIndexKey, gomock.Any()).SetArg(1, []string{msg.ID}).Return(nil)
 	mockKV.EXPECT().Set(userIndexKey, gomock.Eq([]string{})).Return(true, nil)
 	mockKV.EXPECT().Delete(msgKey).Return(nil)
+	mockChannel.EXPECT().IsMember(msg.ChannelID, msg.UserID).Return(true, nil)
 	mockPoster.EXPECT().CreatePost(gomock.Any()).Return(postErr)
 	mockChannel.EXPECT().GetInfoOrUnknown(msg.ChannelID).Return(channelInfo)
 	mockChannel.EXPECT().MakeChannelLink(channelInfo).Return("in channel: some-link")
@@ -171,6 +173,7 @@ func TestScheduler_StartAndStop(t *testing.T) {
 	mockKV.EXPECT().Get(userIndexKey, gomock.Any()).SetArg(1, []string{msg.ID}).Return(nil).MinTimes(1)
 	mockKV.EXPECT().Set(userIndexKey, gomock.Eq([]string{})).Return(true, nil).MinTimes(1)
 	mockKV.EXPECT().Delete(msgKey).Return(nil).MinTimes(1)
+	mockChannel.EXPECT().IsMember(msg.ChannelID, msg.UserID).Return(true, nil).AnyTimes()
 	mockPoster.EXPECT().CreatePost(gomock.Any()).Return(nil).MinTimes(1)
 
 	var wg sync.WaitGroup
@@ -265,6 +268,7 @@ func TestProcessDueMessages_DMError(t *testing.T) {
 	mockKV.EXPECT().Get(userIndexKey, gomock.Any()).SetArg(1, []string{msg.ID}).Return(nil)
 	mockKV.EXPECT().Set(userIndexKey, gomock.Eq([]string{})).Return(true, nil)
 	mockKV.EXPECT().Delete(msgKey).Return(nil)
+	mockChannel.EXPECT().IsMember(msg.ChannelID, msg.UserID).Return(true, nil)
 	mockPoster.EXPECT().CreatePost(gomock.Any()).Return(postErr)
 	mockChannel.EXPECT().GetInfoOrUnknown(msg.ChannelID).Return(channelInfo)
 	mockChannel.EXPECT().MakeChannelLink(channelInfo).Return("in channel: some-link")
@@ -311,6 +315,7 @@ func TestSendNow_Success(t *testing.T) {
 	}
 
 	mockStore.EXPECT().DeleteScheduledMessage(msg.UserID, msg.ID).Return(nil)
+	mockChannel.EXPECT().IsMember(msg.ChannelID, msg.UserID).Return(true, nil)
 	mockPoster.EXPECT().CreatePost(gomock.Eq(&model.Post{
 		ChannelId: msg.ChannelID,
 		Message:   msg.MessageContent,
@@ -376,6 +381,7 @@ func TestSendNow_PostError(t *testing.T) {
 	channelInfo := &ports.ChannelInfo{ChannelID: msg.ChannelID, ChannelLink: "some-link"}
 
 	mockStore.EXPECT().DeleteScheduledMessage(msg.UserID, msg.ID).Return(nil)
+	mockChannel.EXPECT().IsMember(msg.ChannelID, msg.UserID).Return(true, nil)
 	mockPoster.EXPECT().CreatePost(gomock.Any()).Return(postErr)
 	mockChannel.EXPECT().GetInfoOrUnknown(msg.ChannelID).Return(channelInfo)
 	mockChannel.EXPECT().MakeChannelLink(channelInfo).Return("in channel: some-link")
@@ -385,4 +391,74 @@ func TestSendNow_PostError(t *testing.T) {
 
 	require.Error(t, err)
 	assert.EqualError(t, err, postErr.Error())
+}
+
+func TestSendNow_NotAMember(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPoster := mock.NewMockPostService(ctrl)
+	mockStore := mock.NewMockStore(ctrl)
+	mockChannel := mock.NewMockChannelService(ctrl)
+
+	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
+	s := New(testutil.FakeLogger{}, mockPoster, mockStore, mockChannel, "bot", clk)
+
+	msg := &types.ScheduledMessage{
+		ID:             "uuid-send-4",
+		UserID:         "user",
+		ChannelID:      "chan",
+		PostAt:         clk.Now(),
+		MessageContent: "hi",
+		Timezone:       "UTC",
+	}
+
+	channelInfo := &ports.ChannelInfo{ChannelID: msg.ChannelID, ChannelLink: "some-link"}
+
+	// User is no longer a member: the message must NOT be posted, and the
+	// author must be notified (with their content preserved) via DM.
+	mockStore.EXPECT().DeleteScheduledMessage(msg.UserID, msg.ID).Return(nil)
+	mockChannel.EXPECT().IsMember(msg.ChannelID, msg.UserID).Return(false, nil)
+	mockPoster.EXPECT().CreatePost(gomock.Any()).Times(0)
+	mockChannel.EXPECT().GetInfoOrUnknown(msg.ChannelID).Return(channelInfo)
+	mockChannel.EXPECT().MakeChannelLink(channelInfo).Return("in channel: some-link")
+	mockPoster.EXPECT().DM("bot", msg.UserID, gomock.Any()).Return(nil)
+
+	err := s.SendNow(msg)
+
+	require.Error(t, err)
+}
+
+func TestSendNow_MembershipLookupErrorFailsOpen(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPoster := mock.NewMockPostService(ctrl)
+	mockStore := mock.NewMockStore(ctrl)
+	mockChannel := mock.NewMockChannelService(ctrl)
+
+	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
+	s := New(testutil.FakeLogger{}, mockPoster, mockStore, mockChannel, "bot", clk)
+
+	msg := &types.ScheduledMessage{
+		ID:             "uuid-send-5",
+		UserID:         "user",
+		ChannelID:      "chan",
+		PostAt:         clk.Now(),
+		MessageContent: "hi",
+		Timezone:       "UTC",
+	}
+
+	// An ambiguous membership-lookup failure must not suppress delivery.
+	mockStore.EXPECT().DeleteScheduledMessage(msg.UserID, msg.ID).Return(nil)
+	mockChannel.EXPECT().IsMember(msg.ChannelID, msg.UserID).Return(false, errors.New("transient api error"))
+	mockPoster.EXPECT().CreatePost(gomock.Eq(&model.Post{
+		ChannelId: msg.ChannelID,
+		Message:   msg.MessageContent,
+		UserId:    msg.UserID,
+	})).Return(nil)
+
+	err := s.SendNow(msg)
+
+	require.NoError(t, err)
 }

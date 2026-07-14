@@ -11,6 +11,7 @@ import (
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 	"github.com/golang/mock/gomock"
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/pluginapi"
 )
 
 func newTestChannel(t *testing.T) (*Channel,
@@ -385,4 +386,64 @@ func TestMakeChannelLink(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestIsMember(t *testing.T) {
+	channelID := "chan1"
+	userID := "user1"
+
+	t.Run("member", func(t *testing.T) {
+		ch, chData, _, _, ctrl := newTestChannel(t)
+		defer ctrl.Finish()
+
+		chData.EXPECT().
+			GetMember(channelID, userID).
+			Return(&model.ChannelMember{ChannelId: channelID, UserId: userID}, nil).
+			Times(1)
+
+		ok, err := ch.IsMember(channelID, userID)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !ok {
+			t.Fatalf("expected member, got not a member")
+		}
+	})
+
+	t.Run("not a member returns false without error", func(t *testing.T) {
+		ch, chData, _, _, ctrl := newTestChannel(t)
+		defer ctrl.Finish()
+
+		chData.EXPECT().
+			GetMember(channelID, userID).
+			Return(nil, pluginapi.ErrNotFound).
+			Times(1)
+
+		ok, err := ch.IsMember(channelID, userID)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if ok {
+			t.Fatalf("expected not a member, got member")
+		}
+	})
+
+	t.Run("ambiguous lookup failure propagates error", func(t *testing.T) {
+		ch, chData, _, _, ctrl := newTestChannel(t)
+		defer ctrl.Finish()
+
+		boom := errors.New("boom")
+		chData.EXPECT().
+			GetMember(channelID, userID).
+			Return(nil, boom).
+			Times(1)
+
+		ok, err := ch.IsMember(channelID, userID)
+		if err == nil {
+			t.Fatalf("expected error, got nil")
+		}
+		if ok {
+			t.Fatalf("expected not a member on error, got member")
+		}
+	})
 }

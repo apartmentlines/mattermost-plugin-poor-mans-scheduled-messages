@@ -48,6 +48,21 @@ func (mr *MockChannelServiceMockRecorder) GetInfoOrUnknown(arg0 interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInfoOrUnknown", reflect.TypeOf((*MockChannelService)(nil).GetInfoOrUnknown), arg0)
 }
 
+// IsMember mocks base method.
+func (m *MockChannelService) IsMember(arg0, arg1 string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsMember", arg0, arg1)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsMember indicates an expected call of IsMember.
+func (mr *MockChannelServiceMockRecorder) IsMember(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsMember", reflect.TypeOf((*MockChannelService)(nil).IsMember), arg0, arg1)
+}
+
 // MakeChannelLink mocks base method.
 func (m *MockChannelService) MakeChannelLink(arg0 *ports.ChannelInfo) string {
 	m.ctrl.T.Helper()
