@@ -49,6 +49,21 @@ func (mr *MockChannelDataServiceMockRecorder) Get(arg0 interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockChannelDataService)(nil).Get), arg0)
 }
 
+// GetMember mocks base method.
+func (m *MockChannelDataService) GetMember(arg0, arg1 string) (*model.ChannelMember, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMember", arg0, arg1)
+	ret0, _ := ret[0].(*model.ChannelMember)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetMember indicates an expected call of GetMember.
+func (mr *MockChannelDataServiceMockRecorder) GetMember(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMember", reflect.TypeOf((*MockChannelDataService)(nil).GetMember), arg0, arg1)
+}
+
 // ListMembers mocks base method.
 func (m *MockChannelDataService) ListMembers(arg0 string, arg1, arg2 int) ([]*model.ChannelMember, error) {
 	m.ctrl.T.Helper()

@@ -44,7 +44,7 @@ func NewScheduleService(
 
 // Build validates and schedules a message.
 func (s *ScheduleService) Build(args *model.CommandArgs, text string) *model.CommandResponse {
-	s.logger.Debug("Attempting to schedule message", "user_id", args.UserId, "channel_id", args.ChannelId, "text", text)
+	s.logger.Debug("Attempting to schedule message", "user_id", args.UserId, "channel_id", args.ChannelId, "text_length", len(text))
 
 	s.logger.Debug("Validating schedule request", "user_id", args.UserId)
 	if resp := s.validateRequest(args.UserId, text); resp != nil {
@@ -57,7 +57,7 @@ func (s *ScheduleService) Build(args *model.CommandArgs, text string) *model.Com
 	msg, loc, tz, err := s.prepareSchedule(args.UserId, args.ChannelId, text)
 	if err != nil {
 		errMsg := fmt.Sprintf("Error preparing schedule: %v, Original input: `%v`", err, text)
-		s.logger.Error("Failed to prepare schedule", "user_id", args.UserId, "channel_id", args.ChannelId, "error", err, "original_text", text)
+		s.logger.Error("Failed to prepare schedule", "user_id", args.UserId, "channel_id", args.ChannelId, "error", err)
 		return s.errorResponse(errMsg)
 	}
 	localTime := msg.PostAt.In(loc)
@@ -171,13 +171,13 @@ func (s *ScheduleService) errorResponse(text string) *model.CommandResponse {
 func (s *ScheduleService) prepareSchedule(userID, channelID, text string) (*types.ScheduledMessage, *time.Location, string, error) {
 	s.logger.Debug("Preparing schedule", "user_id", userID, "channel_id", channelID)
 
-	s.logger.Debug("Parsing schedule input text", "user_id", userID, "text", text)
+	s.logger.Debug("Parsing schedule input text", "user_id", userID, "text_length", len(text))
 	parsed, parseErr := parseScheduleInput(text)
 	if parseErr != nil {
-		s.logger.Error("Failed to parse schedule input", "user_id", userID, "text", text, "error", parseErr)
+		s.logger.Error("Failed to parse schedule input", "user_id", userID, "error", parseErr)
 		return nil, nil, "", fmt.Errorf("failed to parse input: %w", parseErr)
 	}
-	s.logger.Debug("Parsed schedule input", "user_id", userID, "parsed_time", parsed.TimeStr, "parsed_date", parsed.DateStr, "message", parsed.Message)
+	s.logger.Debug("Parsed schedule input", "user_id", userID, "parsed_time", parsed.TimeStr, "parsed_date", parsed.DateStr, "message_length", len(parsed.Message))
 
 	tz := s.getUserTimezone(userID)
 	s.logger.Debug("Loading location based on timezone", "user_id", userID, "timezone", tz)

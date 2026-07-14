@@ -2,12 +2,14 @@
 package channel
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/pluginapi"
 )
 
 // Channel provides channel lookup and formatting helpers.
@@ -107,6 +109,28 @@ func (c *Channel) GetInfoOrUnknown(channelID string) *ports.ChannelInfo {
 	}
 	c.logger.Warn("GetInfo failed, returning unknown channel info", "channel_id", channelID, "error", getChannelErr)
 	return c.UnknownChannel()
+}
+
+// IsMember reports whether the user is currently a member of the channel.
+//
+// A user who was removed from a private channel (or left the team) after
+// scheduling a message must not have that message delivered on their behalf.
+// This distinguishes a definitive "not a member" answer (ErrNotFound) from an
+// ambiguous lookup failure: only the former returns (false, nil); a transient
+// or unexpected error returns (false, err) so callers can decide how to react
+// without silently treating every failure as a lost membership.
+func (c *Channel) IsMember(channelID, userID string) (bool, error) {
+	c.logger.Debug("Checking channel membership", "channel_id", channelID, "user_id", userID)
+	_, err := c.channelAPI.GetMember(channelID, userID)
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, pluginapi.ErrNotFound) {
+		c.logger.Debug("User is not a member of channel", "channel_id", channelID, "user_id", userID)
+		return false, nil
+	}
+	c.logger.Warn("Failed to determine channel membership", "channel_id", channelID, "user_id", userID, "error", err)
+	return false, err
 }
 
 // MakeChannelLink formats a channel link string for display.

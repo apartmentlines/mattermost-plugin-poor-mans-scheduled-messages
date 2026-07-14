@@ -38,11 +38,16 @@ type ChannelInfo struct {
 type ChannelService interface {
 	GetInfoOrUnknown(channelID string) *ChannelInfo
 	MakeChannelLink(info *ChannelInfo) string
+	// IsMember reports whether the user is currently a member of the channel.
+	// It returns (false, nil) only when membership can be positively determined
+	// to be absent, and a non-nil error when membership could not be determined.
+	IsMember(channelID, userID string) (bool, error)
 }
 
 // ChannelDataService provides channel data access.
 type ChannelDataService interface {
 	Get(channelID string) (*model.Channel, error)
+	GetMember(channelID, userID string) (*model.ChannelMember, error)
 	ListMembers(channelID string, page, perPage int) ([]*model.ChannelMember, error)
 }
 
