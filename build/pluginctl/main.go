@@ -74,11 +74,13 @@ func getClient(ctx context.Context) (*model.Client4, error) {
 
 	client, connected := getUnixClient(socketPath)
 	if connected {
+		// #nosec G706 -- socketPath is an intentional developer-controlled local-mode setting.
 		log.Printf("Connecting using local mode over %s", socketPath)
 		return client, nil
 	}
 
 	if os.Getenv("MM_LOCALSOCKETPATH") != "" {
+		// #nosec G706 -- socketPath is an intentional developer-controlled local-mode setting.
 		log.Printf("No socket found at %s for local mode deployment. Attempting to authenticate with credentials.", socketPath)
 	}
 
@@ -94,6 +96,7 @@ func getClient(ctx context.Context) (*model.Client4, error) {
 	client = model.NewAPIv4Client(siteURL)
 
 	if adminToken != "" {
+		// #nosec G706 -- siteURL is an intentional developer-controlled deployment target.
 		log.Printf("Authenticating using token against %s.", siteURL)
 		client.SetToken(adminToken)
 		return client, nil
@@ -101,6 +104,7 @@ func getClient(ctx context.Context) (*model.Client4, error) {
 
 	if adminUsername != "" && adminPassword != "" {
 		client := model.NewAPIv4Client(siteURL)
+		// #nosec G706 -- username and siteURL are intentional developer-controlled settings.
 		log.Printf("Authenticating as %s against %s.", adminUsername, siteURL)
 		_, _, err := client.Login(ctx, adminUsername, adminPassword)
 		if err != nil {
@@ -114,6 +118,7 @@ func getClient(ctx context.Context) (*model.Client4, error) {
 }
 
 func getUnixClient(socketPath string) (*model.Client4, bool) {
+	// #nosec G704 -- local mode intentionally connects to the developer-configured Unix socket.
 	_, err := net.Dial("unix", socketPath)
 	if err != nil {
 		return nil, false
@@ -125,7 +130,7 @@ func getUnixClient(socketPath string) (*model.Client4, bool) {
 // deploy attempts to upload and enable a plugin via the Client4 API.
 // It will fail if plugin uploads are disabled.
 func deploy(ctx context.Context, client *model.Client4, pluginID, bundlePath string) error {
-	// #nosec G304 -- bundlePath is provided by the developer running pluginctl.
+	// #nosec G304,G703 -- bundlePath is intentionally provided by the developer running pluginctl.
 	pluginBundle, err := os.Open(bundlePath)
 	if err != nil {
 		return fmt.Errorf("failed to open %s: %w", bundlePath, err)

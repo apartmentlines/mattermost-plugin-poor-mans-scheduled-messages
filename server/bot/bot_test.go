@@ -7,9 +7,9 @@ import (
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/adapters/mock"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
-	"github.com/golang/mock/gomock"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
+	"go.uber.org/mock/gomock"
 )
 
 type fakeImgSvc struct {

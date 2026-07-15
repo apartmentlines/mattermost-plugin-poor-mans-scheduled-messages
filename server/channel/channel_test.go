@@ -9,8 +9,8 @@ import (
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/testutil"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
-	"github.com/golang/mock/gomock"
 	"github.com/mattermost/mattermost/server/public/model"
+	"go.uber.org/mock/gomock"
 )
 
 func newTestChannel(t *testing.T) (*Channel,

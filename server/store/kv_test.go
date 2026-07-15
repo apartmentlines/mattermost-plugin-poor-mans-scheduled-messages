@@ -10,9 +10,9 @@ import (
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/testutil"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
-	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
+	"go.uber.org/mock/gomock"
 )
 
 type fakeListMatching struct{ prefixCalled string }

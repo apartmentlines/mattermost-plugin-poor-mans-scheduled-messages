@@ -1,4 +1,6 @@
 GO ?= go
+PROJECT_GO_VERSION := $(shell $(GO) list -m -f '{{.GoVersion}}')
+export GOTOOLCHAIN := go$(PROJECT_GO_VERSION)
 GOIMPORTS ?= $(shell command -v goimports 2> /dev/null)
 NPM ?= $(shell command -v npm 2> /dev/null)
 CURL ?= $(shell command -v curl 2> /dev/null)
@@ -165,7 +167,7 @@ apply:
 ## Install go tools
 install-go-tools:
 	@echo Installing go tools
-	$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.7.2
+	$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
 	$(GO) install gotest.tools/gotestsum@v1.13.0
 
 ## Runs eslint and golangci-lint
@@ -412,8 +414,8 @@ help:
 
 .PHONY: mocks
 mocks:
-	$(GO) install github.com/golang/mock/mockgen@v1.6.0
-	$(GO) generate ./...
+	$(GO) install go.uber.org/mock/mockgen@v0.6.0
+	PATH="$(GOBIN):$(PATH)" $(GO) generate ./...
 
 .PHONY: format
 format:
