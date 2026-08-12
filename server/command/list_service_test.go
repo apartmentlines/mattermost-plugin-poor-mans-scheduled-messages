@@ -105,6 +105,7 @@ func TestBuild_Success(t *testing.T) {
 	userID := "user1"
 	now := time.Now()
 	msg1 := createTestMessage("id1", userID, "ch1", "msg content 1", "UTC", now.Add(1*time.Hour))
+	msg1.RootID = "root1"
 	msg2 := createTestMessage("id2", userID, "ch2", "msg content 2", "UTC", now.Add(2*time.Hour))
 	info1 := &ports.ChannelInfo{ChannelID: "ch1", ChannelType: model.ChannelTypeOpen, ChannelLink: "~town-square", TeamName: "team1"}
 	info2 := &ports.ChannelInfo{ChannelID: "ch2", ChannelType: model.ChannelTypePrivate, ChannelLink: "~private-channel", TeamName: "team1"}
@@ -128,8 +129,8 @@ func TestBuild_Success(t *testing.T) {
 	require.Len(t, attachments, 2)
 
 	loc, _ := time.LoadLocation("UTC")
-	expectedHeader1 := formatter.FormatListAttachmentHeader(msg1.PostAt.In(loc), "in channel: ~town-square", msg1.MessageContent)
-	expectedHeader2 := formatter.FormatListAttachmentHeader(msg2.PostAt.In(loc), "in channel: ~private-channel", msg2.MessageContent)
+	expectedHeader1 := formatter.FormatListAttachmentHeader(msg1.PostAt.In(loc), "in channel: ~town-square", msg1.MessageContent, true)
+	expectedHeader2 := formatter.FormatListAttachmentHeader(msg2.PostAt.In(loc), "in channel: ~private-channel", msg2.MessageContent, false)
 
 	assert.Equal(t, expectedHeader1, attachments[0].Text)
 	require.Len(t, attachments[0].Actions, 2)
@@ -382,7 +383,7 @@ func TestBuildAttachments_SingleMessage(t *testing.T) {
 	att := attachments[0]
 
 	loc, _ := time.LoadLocation("UTC")
-	expectedHeader := formatter.FormatListAttachmentHeader(now.In(loc), channelLinkStr, "Hello world")
+	expectedHeader := formatter.FormatListAttachmentHeader(now.In(loc), channelLinkStr, "Hello world", false)
 
 	assert.Equal(t, expectedHeader, att.Text)
 	require.Len(t, att.Actions, 2)
@@ -499,7 +500,7 @@ func TestBuildAttachments_TimezoneHandling(t *testing.T) {
 	require.NoError(t, err)
 	expectedTimeStr := postAtUTC.In(locNY).Format(constants.TimeLayout) // Should be 10:00 AM
 
-	expectedHeader := formatter.FormatListAttachmentHeader(postAtUTC.In(locNY), linkStr, "Timezone test")
+	expectedHeader := formatter.FormatListAttachmentHeader(postAtUTC.In(locNY), linkStr, "Timezone test", false)
 	assert.Equal(t, expectedHeader, att.Text)
 	assert.Contains(t, att.Text, expectedTimeStr)
 	assert.Contains(t, att.Text, "10:00 AM")

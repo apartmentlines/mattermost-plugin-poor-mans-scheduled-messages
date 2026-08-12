@@ -106,6 +106,7 @@ func (l *ListService) buildAttachments(msgs []*types.ScheduledMessage) []*model.
 			localTime,
 			l.channel.MakeChannelLink(channelCache[m.ChannelID]),
 			m.MessageContent,
+			m.RootID != "",
 		)
 		attachments = append(attachments, createAttachment(header, m.ID))
 		l.logger.Debug("Created attachment for message", "message_id", m.ID)

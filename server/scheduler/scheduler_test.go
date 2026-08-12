@@ -50,6 +50,7 @@ func TestProcessDueMessages_PostSuccess(t *testing.T) {
 	mockKV.EXPECT().Delete(msgKey).Return(nil)
 	mockPoster.EXPECT().CreatePost(gomock.Eq(&model.Post{
 		ChannelId: msg.ChannelID,
+		RootId:    msg.RootID,
 		Message:   msg.MessageContent,
 		UserId:    msg.UserID,
 	})).Return(nil)
@@ -305,6 +306,7 @@ func TestSendNow_Success(t *testing.T) {
 		ID:             "uuid-send-1",
 		UserID:         "user",
 		ChannelID:      "chan",
+		RootID:         "root-post",
 		PostAt:         clk.Now(),
 		MessageContent: "hi",
 		Timezone:       "UTC",
@@ -313,6 +315,7 @@ func TestSendNow_Success(t *testing.T) {
 	mockStore.EXPECT().DeleteScheduledMessage(msg.UserID, msg.ID).Return(nil)
 	mockPoster.EXPECT().CreatePost(gomock.Eq(&model.Post{
 		ChannelId: msg.ChannelID,
+		RootId:    msg.RootID,
 		Message:   msg.MessageContent,
 		UserId:    msg.UserID,
 	})).Return(nil)

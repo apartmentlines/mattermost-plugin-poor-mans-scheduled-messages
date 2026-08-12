@@ -167,6 +167,7 @@ func (s *Scheduler) postMessage(msg *types.ScheduledMessage) error {
 	s.logger.Debug("Attempting to post scheduled message", "message_id", msg.ID, "user_id", msg.UserID, "channel_id", msg.ChannelID)
 	post := &model.Post{
 		ChannelId: msg.ChannelID,
+		RootId:    msg.RootID,
 		Message:   msg.MessageContent,
 		UserId:    msg.UserID,
 	}

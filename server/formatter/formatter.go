@@ -9,8 +9,8 @@ import (
 )
 
 // FormatScheduleSuccess renders a success message for scheduling.
-func FormatScheduleSuccess(postAt time.Time, tz, channelLink string) string {
-	return fmt.Sprintf("%s Scheduled message for %s (%s) %s", constants.EmojiSuccess, postAt.Format(constants.TimeLayout), tz, channelLink)
+func FormatScheduleSuccess(postAt time.Time, tz, channelLink string, inThread bool) string {
+	return fmt.Sprintf("%s Scheduled message for %s (%s) %s", constants.EmojiSuccess, postAt.Format(constants.TimeLayout), tz, formatDestination(channelLink, inThread))
 }
 
 // FormatEmptyCommandError renders a message for empty input.
@@ -35,6 +35,13 @@ func FormatSchedulerFailure(channelLink string, postErr error, originalMsg strin
 }
 
 // FormatListAttachmentHeader renders list attachment header text.
-func FormatListAttachmentHeader(postAt time.Time, channelLink, messageContent string) string {
-	return fmt.Sprintf("##### %s\n%s\n\n%s", postAt.Format(constants.TimeLayout), channelLink, messageContent)
+func FormatListAttachmentHeader(postAt time.Time, channelLink, messageContent string, inThread bool) string {
+	return fmt.Sprintf("##### %s\n%s\n\n%s", postAt.Format(constants.TimeLayout), formatDestination(channelLink, inThread), messageContent)
+}
+
+func formatDestination(channelLink string, inThread bool) string {
+	if inThread {
+		return channelLink + " (thread)"
+	}
+	return channelLink
 }

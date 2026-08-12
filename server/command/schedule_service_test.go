@@ -87,6 +87,7 @@ func TestNewScheduleService(t *testing.T) {
 func TestBuild_HappyPath(t *testing.T) {
 	service, mocks := setupScheduleServiceTest(t)
 	args := defaultArgs()
+	args.RootId = "test-root-id"
 	text := "at 3:00PM on 2024-01-16 message Hello world"
 	expectedPostAtUTC := time.Date(2024, 1, 16, 20, 0, 0, 0, time.UTC) // 3 PM EST is 8 PM UTC
 	expectedPostAtLocal := time.Date(2024, 1, 16, 15, 0, 0, 0, testutil.MustLoadLocation(t, testTimezone))
@@ -100,6 +101,7 @@ func TestBuild_HappyPath(t *testing.T) {
 			assert.Equal(t, testMsgID, msg.ID)
 			assert.Equal(t, testUserID, msg.UserID)
 			assert.Equal(t, testChannelID, msg.ChannelID)
+			assert.Equal(t, args.RootId, msg.RootID)
 			assert.True(t, expectedPostAtUTC.Equal(msg.PostAt), "Expected %v, got %v", expectedPostAtUTC, msg.PostAt)
 			assert.Equal(t, "Hello world", msg.MessageContent)
 			assert.Equal(t, testTimezone, msg.Timezone)
@@ -112,7 +114,7 @@ func TestBuild_HappyPath(t *testing.T) {
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testTimezone, testFormattedLink)
+	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testTimezone, testFormattedLink, true)
 	assert.Equal(t, expectedSuccessMsg, resp.Text)
 }
 
@@ -141,7 +143,7 @@ func TestBuild_TimezoneLogic_DefaultUsed_NoSettings(t *testing.T) {
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testDefaultTZ, testFormattedLink)
+	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testDefaultTZ, testFormattedLink, false)
 	assert.Equal(t, expectedSuccessMsg, resp.Text)
 }
 
@@ -176,7 +178,7 @@ func TestBuild_TimezoneLogic_ManualUsed(t *testing.T) {
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, manualTZ, testFormattedLink)
+	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, manualTZ, testFormattedLink, false)
 	assert.Equal(t, expectedSuccessMsg, resp.Text)
 }
 
@@ -252,7 +254,7 @@ func TestBuild_TimezoneLogic_AutomaticUsed(t *testing.T) {
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, autoTZ, testFormattedLink)
+	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, autoTZ, testFormattedLink, false)
 	assert.Equal(t, expectedSuccessMsg, resp.Text)
 }
 
@@ -318,7 +320,7 @@ func TestBuild_PreparationFailure_UserTimezoneFetchError(t *testing.T) {
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testDefaultTZ, testFormattedLink)
+	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testDefaultTZ, testFormattedLink, false)
 	assert.Equal(t, expectedSuccessMsg, resp.Text) // Response should show UTC
 }
 
@@ -348,7 +350,7 @@ func TestBuild_PreparationFailure_InvalidUserTimezone(t *testing.T) {
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testDefaultTZ, testFormattedLink) // Show UTC in response
+	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testDefaultTZ, testFormattedLink, false) // Show UTC in response
 	assert.Equal(t, expectedSuccessMsg, resp.Text)
 }
 
