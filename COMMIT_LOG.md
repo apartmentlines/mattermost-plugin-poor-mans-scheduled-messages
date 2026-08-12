@@ -1,3 +1,8 @@
+### v1.3.0 - 08/12/2026
+
+* **Wed Aug 12 2026:** preserve threads for scheduled messages
+* **Wed Jul 15 2026:** upgrade Go and module dependencies
+
 ### v1.2.1 - 03/17/2026
 
 * **Wed Mar 18 2026:** SlackAttachment -> MessageAttachment
