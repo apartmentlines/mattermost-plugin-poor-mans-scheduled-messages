@@ -1,3 +1,7 @@
+### v1.3.1 - 08/19/2026
+
+* **Wed Aug 19 2026:** Upgrade Go dependencies and address gRPC vulnerabilities
+
 ### v1.3.0 - 08/12/2026
 
 * **Wed Aug 12 2026:** preserve threads for scheduled messages
