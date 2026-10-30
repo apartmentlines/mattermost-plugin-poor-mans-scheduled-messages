@@ -60,8 +60,7 @@ func setupScheduleServiceTest(t *testing.T) (*ScheduleService, *testMocks) {
 		mocks.store,
 		mocks.channel,
 		mocks.clock,
-		testMaxUserMsgs,
-	)
+		testMaxUserMsgs, nil)
 	require.NotNil(t, service)
 	return service, mocks
 }
@@ -108,13 +107,13 @@ func TestBuild_HappyPath(t *testing.T) {
 			return nil
 		})
 	mocks.channel.EXPECT().GetInfoOrUnknown(testChannelID).Return(channelInfo)
-	mocks.channel.EXPECT().MakeChannelLink(channelInfo).Return(testFormattedLink)
+	mocks.channel.EXPECT().MakeChannelLink(channelInfo, gomock.Any()).Return(testFormattedLink)
 
 	resp := service.Build(args, text)
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testTimezone, testFormattedLink, true)
+	expectedSuccessMsg := (formatter.Renderer{}).FormatScheduleSuccess(expectedPostAtLocal, testTimezone, testFormattedLink, true)
 	assert.Equal(t, expectedSuccessMsg, resp.Text)
 }
 
@@ -137,13 +136,13 @@ func TestBuild_TimezoneLogic_DefaultUsed_NoSettings(t *testing.T) {
 			return nil
 		})
 	mocks.channel.EXPECT().GetInfoOrUnknown(testChannelID).Return(channelInfo)
-	mocks.channel.EXPECT().MakeChannelLink(channelInfo).Return(testFormattedLink)
+	mocks.channel.EXPECT().MakeChannelLink(channelInfo, gomock.Any()).Return(testFormattedLink)
 
 	resp := service.Build(args, text)
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testDefaultTZ, testFormattedLink, false)
+	expectedSuccessMsg := (formatter.Renderer{}).FormatScheduleSuccess(expectedPostAtLocal, testDefaultTZ, testFormattedLink, false)
 	assert.Equal(t, expectedSuccessMsg, resp.Text)
 }
 
@@ -172,13 +171,13 @@ func TestBuild_TimezoneLogic_ManualUsed(t *testing.T) {
 			return nil
 		})
 	mocks.channel.EXPECT().GetInfoOrUnknown(testChannelID).Return(channelInfo)
-	mocks.channel.EXPECT().MakeChannelLink(channelInfo).Return(testFormattedLink)
+	mocks.channel.EXPECT().MakeChannelLink(channelInfo, gomock.Any()).Return(testFormattedLink)
 
 	resp := service.Build(args, text)
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, manualTZ, testFormattedLink, false)
+	expectedSuccessMsg := (formatter.Renderer{}).FormatScheduleSuccess(expectedPostAtLocal, manualTZ, testFormattedLink, false)
 	assert.Equal(t, expectedSuccessMsg, resp.Text)
 }
 
@@ -213,13 +212,13 @@ func TestBuild_PersistenceFailure_StoreSaveError(t *testing.T) {
 	mocks.store.EXPECT().GenerateMessageID().Return(testMsgID)
 	mocks.store.EXPECT().SaveScheduledMessage(testUserID, gomock.AssignableToTypeOf(&types.ScheduledMessage{})).Return(saveErr)
 	mocks.channel.EXPECT().GetInfoOrUnknown(testChannelID).Return(channelInfo)
-	mocks.channel.EXPECT().MakeChannelLink(channelInfo).Return(testFormattedLink)
+	mocks.channel.EXPECT().MakeChannelLink(channelInfo, gomock.Any()).Return(testFormattedLink)
 
 	resp := service.Build(args, text)
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedFormattedErr := formatter.FormatScheduleError(expectedPostAtLocal, testTimezone, testFormattedLink, saveErr)
+	expectedFormattedErr := (formatter.Renderer{}).FormatScheduleError(expectedPostAtLocal, testTimezone, testFormattedLink, saveErr)
 	assert.Equal(t, expectedFormattedErr, resp.Text)
 }
 
@@ -248,13 +247,13 @@ func TestBuild_TimezoneLogic_AutomaticUsed(t *testing.T) {
 			return nil
 		})
 	mocks.channel.EXPECT().GetInfoOrUnknown(testChannelID).Return(channelInfo)
-	mocks.channel.EXPECT().MakeChannelLink(channelInfo).Return(testFormattedLink)
+	mocks.channel.EXPECT().MakeChannelLink(channelInfo, gomock.Any()).Return(testFormattedLink)
 
 	resp := service.Build(args, text)
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, autoTZ, testFormattedLink, false)
+	expectedSuccessMsg := (formatter.Renderer{}).FormatScheduleSuccess(expectedPostAtLocal, autoTZ, testFormattedLink, false)
 	assert.Equal(t, expectedSuccessMsg, resp.Text)
 }
 
@@ -274,7 +273,7 @@ func TestBuild_ValidationFailure_MaxUserMessagesReached(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
 	expectedErr := fmt.Errorf("cannot schedule more than %d messages (current: %d)", testMaxUserMsgs, testMaxUserMsgs)
-	expectedFormattedErr := formatter.FormatScheduleValidationError(expectedErr)
+	expectedFormattedErr := (formatter.Renderer{}).FormatScheduleValidationError(expectedErr)
 	assert.Equal(t, expectedFormattedErr, resp.Text)
 }
 
@@ -314,13 +313,13 @@ func TestBuild_PreparationFailure_UserTimezoneFetchError(t *testing.T) {
 			return nil
 		})
 	mocks.channel.EXPECT().GetInfoOrUnknown(testChannelID).Return(channelInfo)
-	mocks.channel.EXPECT().MakeChannelLink(channelInfo).Return(testFormattedLink)
+	mocks.channel.EXPECT().MakeChannelLink(channelInfo, gomock.Any()).Return(testFormattedLink)
 
 	resp := service.Build(args, text)
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testDefaultTZ, testFormattedLink, false)
+	expectedSuccessMsg := (formatter.Renderer{}).FormatScheduleSuccess(expectedPostAtLocal, testDefaultTZ, testFormattedLink, false)
 	assert.Equal(t, expectedSuccessMsg, resp.Text) // Response should show UTC
 }
 
@@ -344,13 +343,13 @@ func TestBuild_PreparationFailure_InvalidUserTimezone(t *testing.T) {
 			return nil
 		})
 	mocks.channel.EXPECT().GetInfoOrUnknown(testChannelID).Return(channelInfo)
-	mocks.channel.EXPECT().MakeChannelLink(channelInfo).Return(testFormattedLink)
+	mocks.channel.EXPECT().MakeChannelLink(channelInfo, gomock.Any()).Return(testFormattedLink)
 
 	resp := service.Build(args, text)
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedSuccessMsg := formatter.FormatScheduleSuccess(expectedPostAtLocal, testDefaultTZ, testFormattedLink, false) // Show UTC in response
+	expectedSuccessMsg := (formatter.Renderer{}).FormatScheduleSuccess(expectedPostAtLocal, testDefaultTZ, testFormattedLink, false) // Show UTC in response
 	assert.Equal(t, expectedSuccessMsg, resp.Text)
 }
 
@@ -365,7 +364,7 @@ func TestBuild_ValidationFailure_EmptyCommandText(t *testing.T) {
 
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
-	expectedFormattedErr := formatter.FormatEmptyCommandError()
+	expectedFormattedErr := (formatter.Renderer{}).FormatEmptyCommandError()
 	assert.Equal(t, expectedFormattedErr, resp.Text)
 }
 
@@ -384,7 +383,7 @@ func TestBuild_ValidationFailure_MaxMessageBytesExceeded(t *testing.T) {
 	kb := float64(constants.MaxMessageBytes) / 1024
 	userKb := float64(len(text)) / 1024
 	expectedErr := fmt.Errorf("message length %.2f KB exceeds limit %.2f KB", userKb, kb)
-	expectedFormattedErr := formatter.FormatScheduleValidationError(expectedErr)
+	expectedFormattedErr := (formatter.Renderer{}).FormatScheduleValidationError(expectedErr)
 	assert.Equal(t, expectedFormattedErr, resp.Text)
 }
 
@@ -401,6 +400,6 @@ func TestBuild_ValidationFailure_ErrorCheckingMaxUserMessages(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
 	expectedErr := fmt.Errorf("failed to check message count: %w", storeErr)
-	expectedFormattedErr := formatter.FormatScheduleValidationError(expectedErr)
+	expectedFormattedErr := (formatter.Renderer{}).FormatScheduleValidationError(expectedErr)
 	assert.Equal(t, expectedFormattedErr, resp.Text)
 }

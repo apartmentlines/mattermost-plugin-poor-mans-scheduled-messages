@@ -1,0 +1,43 @@
+{
+  "date": "2 January 2006",
+  "months": [
+    "tháng một",
+    "tháng hai",
+    "tháng ba",
+    "tháng tư",
+    "tháng năm",
+    "tháng sáu",
+    "tháng bảy",
+    "tháng tám",
+    "tháng chín",
+    "tháng mười",
+    "tháng mười một",
+    "tháng mười hai"
+  ],
+  "messages": {
+    "scheduled": "%s Tin nhắn được lên lịch vào %s (%s) %s",
+    "empty_command": "Bạn muốn lên lịch tin nhắn? Hướng dẫn: %s.",
+    "validation": "%s Lỗi lên lịch tin nhắn: %v",
+    "schedule_error": "%s Lỗi lên lịch tin nhắn vào %s (%s) %s: %v",
+    "failure": "%s Lỗi gửi tin nhắn %s: %v — tin nhắn gốc: %s",
+    "thread": "(trong luồng)",
+    "list_header": "### Tin nhắn đã lên lịch",
+    "empty_list": "Bạn không có tin nhắn đã lên lịch.",
+    "send": "Gửi",
+    "delete": "Xóa",
+    "channel": "trong kênh: %s",
+    "direct": "trong tin nhắn trực tiếp với: %s",
+    "unknown_channel": "Kênh không xác định",
+    "deleted": "%s Đã xóa tin nhắn được lên lịch vào **%s** %s.",
+    "sent": "%s Đã gửi tin nhắn được lên lịch vào **%s** %s.",
+    "delete_error": "%s Không thể xóa tin nhắn: %v",
+    "send_error": "%s Không thể gửi tin nhắn: %v",
+    "list_error": "%s Lỗi lấy danh sách tin nhắn: %v",
+    "prepare_error": "Lỗi chuẩn bị tin nhắn: %v, nội dung nhập ban đầu: `%v`",
+    "past_time": "Thời gian đã lên lịch %s đã qua. Hãy chọn thời gian trong tương lai.",
+    "delivery_status": "Giao tin: **%s** · số lần thử %d/%d",
+    "delivery_reason": "Lý do: %s",
+    "next_check": "Lần kiểm tra tiếp theo: %s",
+    "check_delivery": "Kiểm tra giao tin"
+  }
+}

@@ -48,7 +48,7 @@ func TestNewListService_Success(t *testing.T) {
 	mockChannel := mock.NewMockChannelService(ctrl)
 	logger := testutil.FakeLogger{}
 
-	service := NewListService(logger, mockStore, mockChannel)
+	service := NewListService(logger, mockStore, mockChannel, nil)
 
 	require.NotNil(t, service)
 	assert.Equal(t, logger, service.logger)
@@ -63,7 +63,7 @@ func TestBuild_LoadMessagesError(t *testing.T) {
 	mockStore := mock.NewMockStore(ctrl)
 	mockChannel := mock.NewMockChannelService(ctrl)
 	logger := testutil.FakeLogger{}
-	service := NewListService(logger, mockStore, mockChannel)
+	service := NewListService(logger, mockStore, mockChannel, nil)
 	userID := "user1"
 	expectedErr := errors.New("store error")
 
@@ -82,14 +82,14 @@ func TestBuild_NoMessages(t *testing.T) {
 	mockStore := mock.NewMockStore(ctrl)
 	mockChannel := mock.NewMockChannelService(ctrl)
 	logger := testutil.FakeLogger{}
-	service := NewListService(logger, mockStore, mockChannel)
+	service := NewListService(logger, mockStore, mockChannel, nil)
 	userID := "user1"
 
 	mockStore.EXPECT().ListUserMessageIDs(userID).Return([]string{}, nil)
 
 	response := service.Build(userID)
 
-	expectedResponse := emptyResponse()
+	expectedResponse := emptyResponse(formatter.Renderer{})
 	assert.Equal(t, expectedResponse, response)
 }
 
@@ -100,7 +100,7 @@ func TestBuild_Success(t *testing.T) {
 	mockStore := mock.NewMockStore(ctrl)
 	mockChannel := mock.NewMockChannelService(ctrl)
 	logger := testutil.FakeLogger{}
-	service := NewListService(logger, mockStore, mockChannel)
+	service := NewListService(logger, mockStore, mockChannel, nil)
 
 	userID := "user1"
 	now := time.Now()
@@ -115,8 +115,8 @@ func TestBuild_Success(t *testing.T) {
 	mockStore.EXPECT().GetScheduledMessage("id2").Return(msg2, nil)
 	mockChannel.EXPECT().GetInfoOrUnknown("ch1").Return(info1)
 	mockChannel.EXPECT().GetInfoOrUnknown("ch2").Return(info2)
-	mockChannel.EXPECT().MakeChannelLink(info1).Return("in channel: ~town-square")
-	mockChannel.EXPECT().MakeChannelLink(info2).Return("in channel: ~private-channel")
+	mockChannel.EXPECT().MakeChannelLink(info1, gomock.Any()).Return("in channel: ~town-square")
+	mockChannel.EXPECT().MakeChannelLink(info2, gomock.Any()).Return("in channel: ~private-channel")
 
 	response := service.Build(userID)
 
@@ -129,8 +129,8 @@ func TestBuild_Success(t *testing.T) {
 	require.Len(t, attachments, 2)
 
 	loc, _ := time.LoadLocation("UTC")
-	expectedHeader1 := formatter.FormatListAttachmentHeader(msg1.PostAt.In(loc), "in channel: ~town-square", msg1.MessageContent, true)
-	expectedHeader2 := formatter.FormatListAttachmentHeader(msg2.PostAt.In(loc), "in channel: ~private-channel", msg2.MessageContent, false)
+	expectedHeader1 := (formatter.Renderer{}).FormatListAttachmentHeader(msg1.PostAt.In(loc), "in channel: ~town-square", msg1.MessageContent, true)
+	expectedHeader2 := (formatter.Renderer{}).FormatListAttachmentHeader(msg2.PostAt.In(loc), "in channel: ~private-channel", msg2.MessageContent, false)
 
 	assert.Equal(t, expectedHeader1, attachments[0].Text)
 	require.Len(t, attachments[0].Actions, 2)
@@ -355,7 +355,7 @@ func TestBuildAttachments_EmptyInput(t *testing.T) {
 	logger := testutil.FakeLogger{}
 	service := &ListService{logger: logger}
 
-	attachments := service.buildAttachments([]*types.ScheduledMessage{})
+	attachments := service.buildAttachments([]*types.ScheduledMessage{}, formatter.Renderer{})
 
 	assert.NotNil(t, attachments)
 	assert.Empty(t, attachments)
@@ -375,15 +375,15 @@ func TestBuildAttachments_SingleMessage(t *testing.T) {
 	channelLinkStr := "in channel: ~town-square"
 
 	mockChannel.EXPECT().GetInfoOrUnknown("ch1").Return(info)
-	mockChannel.EXPECT().MakeChannelLink(info).Return(channelLinkStr)
+	mockChannel.EXPECT().MakeChannelLink(info, gomock.Any()).Return(channelLinkStr)
 
-	attachments := service.buildAttachments([]*types.ScheduledMessage{msg})
+	attachments := service.buildAttachments([]*types.ScheduledMessage{msg}, formatter.Renderer{})
 
 	require.Len(t, attachments, 1)
 	att := attachments[0]
 
 	loc, _ := time.LoadLocation("UTC")
-	expectedHeader := formatter.FormatListAttachmentHeader(now.In(loc), channelLinkStr, "Hello world", false)
+	expectedHeader := (formatter.Renderer{}).FormatListAttachmentHeader(now.In(loc), channelLinkStr, "Hello world", false)
 
 	assert.Equal(t, expectedHeader, att.Text)
 	require.Len(t, att.Actions, 2)
@@ -421,9 +421,9 @@ func TestBuildAttachments_MultipleMessages_SameChannel_CacheHit(t *testing.T) {
 	channelLinkStr := "in channel: ~town-square"
 
 	mockChannel.EXPECT().GetInfoOrUnknown("ch1").Return(info).Times(1)
-	mockChannel.EXPECT().MakeChannelLink(info).Return(channelLinkStr).Times(2)
+	mockChannel.EXPECT().MakeChannelLink(info, gomock.Any()).Return(channelLinkStr).Times(2)
 
-	attachments := service.buildAttachments([]*types.ScheduledMessage{msg1, msg2})
+	attachments := service.buildAttachments([]*types.ScheduledMessage{msg1, msg2}, formatter.Renderer{})
 
 	require.Len(t, attachments, 2)
 	assert.Contains(t, attachments[0].Text, "content1")
@@ -454,10 +454,10 @@ func TestBuildAttachments_MultipleMessages_DifferentChannels(t *testing.T) {
 
 	mockChannel.EXPECT().GetInfoOrUnknown("ch1").Return(info1)
 	mockChannel.EXPECT().GetInfoOrUnknown("ch2").Return(info2)
-	mockChannel.EXPECT().MakeChannelLink(info1).Return(linkStr1)
-	mockChannel.EXPECT().MakeChannelLink(info2).Return(linkStr2)
+	mockChannel.EXPECT().MakeChannelLink(info1, gomock.Any()).Return(linkStr1)
+	mockChannel.EXPECT().MakeChannelLink(info2, gomock.Any()).Return(linkStr2)
 
-	attachments := service.buildAttachments([]*types.ScheduledMessage{msg1, msg2})
+	attachments := service.buildAttachments([]*types.ScheduledMessage{msg1, msg2}, formatter.Renderer{})
 
 	require.Len(t, attachments, 2)
 	assert.Contains(t, attachments[0].Text, linkStr1)
@@ -488,9 +488,9 @@ func TestBuildAttachments_TimezoneHandling(t *testing.T) {
 	linkStr := "in channel: ~test"
 
 	mockChannel.EXPECT().GetInfoOrUnknown("ch1").Return(info)
-	mockChannel.EXPECT().MakeChannelLink(info).Return(linkStr)
+	mockChannel.EXPECT().MakeChannelLink(info, gomock.Any()).Return(linkStr)
 
-	attachments := service.buildAttachments([]*types.ScheduledMessage{msg})
+	attachments := service.buildAttachments([]*types.ScheduledMessage{msg}, formatter.Renderer{})
 
 	require.Len(t, attachments, 1)
 	att := attachments[0]
@@ -498,9 +498,9 @@ func TestBuildAttachments_TimezoneHandling(t *testing.T) {
 	// Expect time formatted in America/New_York (EDT on July 4th)
 	locNY, err := time.LoadLocation(timezone)
 	require.NoError(t, err)
-	expectedTimeStr := postAtUTC.In(locNY).Format(constants.TimeLayout) // Should be 10:00 AM
+	expectedTimeStr := postAtUTC.In(locNY).Format("Jan 2, 2006 3:04 PM") // Should be 10:00 AM
 
-	expectedHeader := formatter.FormatListAttachmentHeader(postAtUTC.In(locNY), linkStr, "Timezone test", false)
+	expectedHeader := (formatter.Renderer{}).FormatListAttachmentHeader(postAtUTC.In(locNY), linkStr, "Timezone test", false)
 	assert.Equal(t, expectedHeader, att.Text)
 	assert.Contains(t, att.Text, expectedTimeStr)
 	assert.Contains(t, att.Text, "10:00 AM")
@@ -516,7 +516,7 @@ func TestErrorResponse(t *testing.T) {
 }
 
 func TestEmptyResponse(t *testing.T) {
-	resp := emptyResponse()
+	resp := emptyResponse(formatter.Renderer{})
 
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
 	assert.Equal(t, constants.EmptyListMessage, resp.Text)
@@ -528,7 +528,7 @@ func TestSuccessResponse(t *testing.T) {
 	att2 := &model.MessageAttachment{Text: "att2"}
 	atts := []*model.MessageAttachment{att1, att2}
 
-	resp := successResponse(atts)
+	resp := successResponse(atts, formatter.Renderer{})
 
 	assert.Equal(t, model.CommandResponseTypeEphemeral, resp.ResponseType)
 	assert.Equal(t, constants.ListHeader, resp.Text)
@@ -542,7 +542,7 @@ func TestCreateAttachment(t *testing.T) {
 	text := "Attachment header text"
 	messageID := "msg-abc-123"
 
-	att := createAttachment(text, messageID)
+	att := createAttachment(text, messageID, formatter.Renderer{})
 
 	assert.Equal(t, text, att.Text)
 	require.Len(t, att.Actions, 2)

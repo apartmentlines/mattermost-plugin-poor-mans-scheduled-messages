@@ -29,7 +29,7 @@ type BotEnsurer func(ports.BotService, ports.BotProfileImageService) (string, er
 type AppBuilder interface {
 	NewChannel(cli *pluginapi.Client) *channel.Channel
 	NewStore(cli *pluginapi.Client, maxUserMessages int) ports.Store
-	NewScheduler(cli *pluginapi.Client, st ports.Store, ch ports.ChannelService, botID string, clk ports.Clock) *scheduler.Scheduler
+	NewScheduler(cli *pluginapi.Client, st ports.Store, ch ports.ChannelService, botID string, clk ports.Clock, presentation ports.DisplayPreferences) *scheduler.Scheduler
 	NewCommandHandler(
 		cli *pluginapi.Client,
 		st ports.Store,
@@ -50,8 +50,8 @@ func (prodBuilder) NewStore(cli *pluginapi.Client, maxUserMessages int) ports.St
 	return store.NewKVStore(&cli.Log, &cli.KV, mm.NewListMatchingService(), maxUserMessages)
 }
 
-func (prodBuilder) NewScheduler(cli *pluginapi.Client, st ports.Store, ch ports.ChannelService, botID string, clk ports.Clock) *scheduler.Scheduler {
-	return scheduler.New(&cli.Log, &cli.Post, st, ch, botID, clk)
+func (prodBuilder) NewScheduler(cli *pluginapi.Client, st ports.Store, ch ports.ChannelService, botID string, clk ports.Clock, presentation ports.DisplayPreferences) *scheduler.Scheduler {
+	return scheduler.New(&cli.Log, &cli.Post, st, ch, botID, clk, presentation)
 }
 
 func (prodBuilder) NewCommandHandler(
@@ -91,6 +91,7 @@ type Plugin struct {
 	helpText               string
 	logger                 ports.Logger
 	poster                 ports.PostService
+	presentation           ports.DisplayPreferences
 }
 
 func (p *Plugin) loadHelpText(text string) (string, error) {
@@ -190,19 +191,20 @@ func (p *Plugin) initialize(botID string, clk ports.Clock, builder AppBuilder) e
 	p.defaultMaxUserMessages = constants.MaxUserMessages
 	p.logger = &p.client.Log
 	p.poster = &p.client.Post
+	p.presentation = mm.NewDisplayPreferences(p.API)
 
 	p.logger.Debug("Initializing Channel service")
 	p.Channel = builder.NewChannel(p.client)
 	p.logger.Debug("Initializing Store service", "max_user_messages", p.defaultMaxUserMessages)
 	p.Store = builder.NewStore(p.client, p.defaultMaxUserMessages)
 	p.logger.Debug("Initializing Scheduler service", "bot_id", p.BotID)
-	p.Scheduler = builder.NewScheduler(p.client, p.Store, p.Channel, p.BotID, clk)
+	p.Scheduler = builder.NewScheduler(p.client, p.Store, p.Channel, p.BotID, clk, p.presentation)
 
 	p.logger.Debug("Initializing List service")
-	listService := command.NewListService(p.logger, p.Store, p.Channel)
+	listService := command.NewListService(p.logger, p.Store, p.Channel, p.presentation)
 
 	p.logger.Debug("Initializing Schedule service", "max_user_messages", p.defaultMaxUserMessages)
-	scheduleService := command.NewScheduleService(p.logger, &p.client.User, p.Store, p.Channel, clk, p.defaultMaxUserMessages)
+	scheduleService := command.NewScheduleService(p.logger, &p.client.User, p.Store, p.Channel, clk, p.defaultMaxUserMessages, p.presentation)
 
 	p.logger.Debug("Initializing Command handler")
 	p.Command = builder.NewCommandHandler(

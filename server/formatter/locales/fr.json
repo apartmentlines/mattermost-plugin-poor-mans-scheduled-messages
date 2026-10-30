@@ -1,0 +1,43 @@
+{
+  "date": "2 January 2006",
+  "months": [
+    "janvier",
+    "février",
+    "mars",
+    "avril",
+    "mai",
+    "juin",
+    "juillet",
+    "août",
+    "septembre",
+    "octobre",
+    "novembre",
+    "décembre"
+  ],
+  "messages": {
+    "scheduled": "%s Message programmé pour le %s (%s) %s",
+    "empty_command": "Vous souhaitez programmer un message ? Instructions : %s.",
+    "validation": "%s Erreur de programmation du message : %v",
+    "schedule_error": "%s Erreur de programmation du message pour le %s (%s) %s : %v",
+    "failure": "%s Erreur d’envoi du message %s : %v — message original : %s",
+    "thread": "(dans le fil)",
+    "list_header": "### Messages programmés",
+    "empty_list": "Vous n’avez aucun message programmé.",
+    "send": "Envoyer",
+    "delete": "Supprimer",
+    "channel": "dans le canal : %s",
+    "direct": "en message direct avec : %s",
+    "unknown_channel": "Canal inconnu",
+    "deleted": "%s Le message programmé pour le **%s** %s a été supprimé.",
+    "sent": "%s Le message programmé pour le **%s** %s a été envoyé.",
+    "delete_error": "%s Impossible de supprimer le message : %v",
+    "send_error": "%s Impossible d’envoyer le message : %v",
+    "list_error": "%s Erreur de récupération de la liste des messages : %v",
+    "prepare_error": "Erreur de préparation du message : %v, saisie originale : `%v`",
+    "past_time": "La date prévue %s est déjà passée. Choisissez une date future.",
+    "delivery_status": "Livraison : **%s** · tentatives %d/%d",
+    "delivery_reason": "Motif : %s",
+    "next_check": "Prochaine vérification : %s",
+    "check_delivery": "Vérifier la livraison"
+  }
+}

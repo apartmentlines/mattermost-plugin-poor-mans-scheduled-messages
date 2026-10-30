@@ -1,0 +1,43 @@
+{
+  "date": "2 January 2006",
+  "months": [
+    "stycznia",
+    "lutego",
+    "marca",
+    "kwietnia",
+    "maja",
+    "czerwca",
+    "lipca",
+    "sierpnia",
+    "września",
+    "października",
+    "listopada",
+    "grudnia"
+  ],
+  "messages": {
+    "scheduled": "%s Wiadomość zaplanowana na %s (%s) %s",
+    "empty_command": "Chcesz zaplanować wiadomość? Instrukcje: %s.",
+    "validation": "%s Błąd planowania wiadomości: %v",
+    "schedule_error": "%s Błąd planowania wiadomości na %s (%s) %s: %v",
+    "failure": "%s Błąd wysyłania wiadomości %s: %v — oryginalna wiadomość: %s",
+    "thread": "(w wątku)",
+    "list_header": "### Zaplanowane wiadomości",
+    "empty_list": "Nie masz zaplanowanych wiadomości.",
+    "send": "Wyślij",
+    "delete": "Usuń",
+    "channel": "w kanale: %s",
+    "direct": "w wiadomości bezpośredniej z: %s",
+    "unknown_channel": "Nieznany kanał",
+    "deleted": "%s Wiadomość zaplanowana na **%s** %s została usunięta.",
+    "sent": "%s Wiadomość zaplanowana na **%s** %s została wysłana.",
+    "delete_error": "%s Nie udało się usunąć wiadomości: %v",
+    "send_error": "%s Nie udało się wysłać wiadomości: %v",
+    "list_error": "%s Błąd pobierania listy wiadomości: %v",
+    "prepare_error": "Błąd przygotowania wiadomości: %v, oryginalne dane: `%v`",
+    "past_time": "Zaplanowany termin %s już minął. Wybierz termin w przyszłości.",
+    "delivery_status": "Dostarczenie: **%s** · próby %d/%d",
+    "delivery_reason": "Powód: %s",
+    "next_check": "Następne sprawdzenie: %s",
+    "check_delivery": "Sprawdź dostarczenie"
+  }
+}

@@ -13,6 +13,7 @@ import (
 	reflect "reflect"
 
 	ports "github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
+	types "github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -55,15 +56,15 @@ func (mr *MockChannelServiceMockRecorder) GetInfoOrUnknown(channelID any) *gomoc
 }
 
 // MakeChannelLink mocks base method.
-func (m *MockChannelService) MakeChannelLink(info *ports.ChannelInfo) string {
+func (m *MockChannelService) MakeChannelLink(info *ports.ChannelInfo, display types.DisplaySettings) string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "MakeChannelLink", info)
+	ret := m.ctrl.Call(m, "MakeChannelLink", info, display)
 	ret0, _ := ret[0].(string)
 	return ret0
 }
 
 // MakeChannelLink indicates an expected call of MakeChannelLink.
-func (mr *MockChannelServiceMockRecorder) MakeChannelLink(info any) *gomock.Call {
+func (mr *MockChannelServiceMockRecorder) MakeChannelLink(info, display any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MakeChannelLink", reflect.TypeOf((*MockChannelService)(nil).MakeChannelLink), info)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MakeChannelLink", reflect.TypeOf((*MockChannelService)(nil).MakeChannelLink), info, display)
 }

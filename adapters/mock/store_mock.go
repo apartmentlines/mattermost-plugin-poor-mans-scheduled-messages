@@ -11,6 +11,7 @@ package mock
 
 import (
 	reflect "reflect"
+	time "time"
 
 	types "github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	gomock "go.uber.org/mock/gomock"
@@ -40,6 +41,21 @@ func (m *MockStore) EXPECT() *MockStoreMockRecorder {
 	return m.recorder
 }
 
+// ClaimScheduledMessage mocks base method.
+func (m *MockStore) ClaimScheduledMessage(userID, msgID string, now time.Time, manual bool) (*types.ScheduledMessage, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClaimScheduledMessage", userID, msgID, now, manual)
+	ret0, _ := ret[0].(*types.ScheduledMessage)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ClaimScheduledMessage indicates an expected call of ClaimScheduledMessage.
+func (mr *MockStoreMockRecorder) ClaimScheduledMessage(userID, msgID, now, manual any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClaimScheduledMessage", reflect.TypeOf((*MockStore)(nil).ClaimScheduledMessage), userID, msgID, now, manual)
+}
+
 // CleanupMessageFromUserIndex mocks base method.
 func (m *MockStore) CleanupMessageFromUserIndex(userID, msgID string) error {
 	m.ctrl.T.Helper()
@@ -66,6 +82,20 @@ func (m *MockStore) DeleteScheduledMessage(userID, msgID string) error {
 func (mr *MockStoreMockRecorder) DeleteScheduledMessage(userID, msgID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteScheduledMessage", reflect.TypeOf((*MockStore)(nil).DeleteScheduledMessage), userID, msgID)
+}
+
+// FinishDelivery mocks base method.
+func (m *MockStore) FinishDelivery(claim *types.ScheduledMessage, result types.DeliveryResult, now time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FinishDelivery", claim, result, now)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// FinishDelivery indicates an expected call of FinishDelivery.
+func (mr *MockStoreMockRecorder) FinishDelivery(claim, result, now any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FinishDelivery", reflect.TypeOf((*MockStore)(nil).FinishDelivery), claim, result, now)
 }
 
 // GenerateMessageID mocks base method.
@@ -139,4 +169,18 @@ func (m *MockStore) SaveScheduledMessage(userID string, msg *types.ScheduledMess
 func (mr *MockStoreMockRecorder) SaveScheduledMessage(userID, msg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveScheduledMessage", reflect.TypeOf((*MockStore)(nil).SaveScheduledMessage), userID, msg)
+}
+
+// StartDelivery mocks base method.
+func (m *MockStore) StartDelivery(claim *types.ScheduledMessage, now time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StartDelivery", claim, now)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StartDelivery indicates an expected call of StartDelivery.
+func (mr *MockStoreMockRecorder) StartDelivery(claim, now any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartDelivery", reflect.TypeOf((*MockStore)(nil).StartDelivery), claim, now)
 }

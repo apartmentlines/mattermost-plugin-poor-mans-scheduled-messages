@@ -1,6 +1,7 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -14,6 +15,7 @@ import (
 
 // ScheduleService handles scheduling requests.
 type ScheduleService struct {
+	presentation    ports.DisplayPreferences
 	logger          ports.Logger
 	userAPI         ports.UserService
 	store           ports.Store
@@ -30,9 +32,11 @@ func NewScheduleService(
 	channel ports.ChannelService,
 	clk ports.Clock,
 	maxUserMessages int,
+	presentation ports.DisplayPreferences,
 ) *ScheduleService {
 	logger.Debug("Creating new ScheduleService")
 	return &ScheduleService{
+		presentation:    presentation,
 		logger:          logger,
 		userAPI:         userAPI,
 		store:           store,
@@ -44,10 +48,11 @@ func NewScheduleService(
 
 // Build validates and schedules a message.
 func (s *ScheduleService) Build(args *model.CommandArgs, text string) *model.CommandResponse {
+	r := formatter.ForUser(s.presentation, args.UserId)
 	s.logger.Debug("Attempting to schedule message", "user_id", args.UserId, "channel_id", args.ChannelId, "text", text)
 
 	s.logger.Debug("Validating schedule request", "user_id", args.UserId)
-	if resp := s.validateRequest(args.UserId, text); resp != nil {
+	if resp := s.validateRequest(args.UserId, text, r); resp != nil {
 		s.logger.Error("Schedule request validation failed", "user_id", args.UserId, "reason", resp.Text)
 		return resp
 	}
@@ -56,7 +61,11 @@ func (s *ScheduleService) Build(args *model.CommandArgs, text string) *model.Com
 	s.logger.Debug("Preparing schedule details", "user_id", args.UserId, "channel_id", args.ChannelId)
 	msg, loc, tz, err := s.prepareSchedule(args.UserId, args.ChannelId, args.RootId, text)
 	if err != nil {
-		errMsg := fmt.Sprintf("Error preparing schedule: %v, Original input: `%v`", err, text)
+		var past *pastScheduleError
+		if errors.As(err, &past) {
+			err = fmt.Errorf("failed to resolve time: %s", r.Text("past_time", r.DateTime(past.scheduledTime)))
+		}
+		errMsg := r.Text("prepare_error", err, text)
 		s.logger.Error("Failed to prepare schedule", "user_id", args.UserId, "channel_id", args.ChannelId, "error", err, "original_text", text)
 		return s.errorResponse(errMsg)
 	}
@@ -65,14 +74,14 @@ func (s *ScheduleService) Build(args *model.CommandArgs, text string) *model.Com
 
 	s.logger.Debug("Persisting scheduled message", "user_id", args.UserId, "message_id", msg.ID)
 	if err := s.persist(args.UserId, msg); err != nil {
-		channelLink := s.channel.MakeChannelLink(s.channel.GetInfoOrUnknown(args.ChannelId))
-		formatted := formatter.FormatScheduleError(localTime, tz, channelLink, err)
+		channelLink := s.channel.MakeChannelLink(s.channel.GetInfoOrUnknown(args.ChannelId), r.DisplaySettings)
+		formatted := r.FormatScheduleError(localTime, tz, channelLink, err)
 		s.logger.Error("Failed to persist scheduled message", "user_id", args.UserId, "message_id", msg.ID, "error", err)
 		return s.errorResponse(formatted)
 	}
 	s.logger.Info("Scheduled message persisted successfully", "user_id", args.UserId, "message_id", msg.ID)
 
-	return s.successResponse(msg, localTime, tz, args.ChannelId)
+	return s.successResponse(msg, localTime, tz, args.ChannelId, r)
 }
 
 func (s *ScheduleService) checkMaxUserMessages(userID string) error {
@@ -134,18 +143,18 @@ func (s *ScheduleService) getUserTimezone(userID string) string {
 	return tz
 }
 
-func (s *ScheduleService) validateRequest(userID, text string) *model.CommandResponse {
+func (s *ScheduleService) validateRequest(userID, text string, r formatter.Renderer) *model.CommandResponse {
 	s.logger.Debug("Starting request validation", "user_id", userID)
 	if maxUserMessagesErr := s.checkMaxUserMessages(userID); maxUserMessagesErr != nil {
-		return s.errorResponse(formatter.FormatScheduleValidationError(maxUserMessagesErr))
+		return s.errorResponse(r.FormatScheduleValidationError(maxUserMessagesErr))
 	}
 	if maxMessageBytesErr := s.checkMaxMessageBytes(text); maxMessageBytesErr != nil {
-		return s.errorResponse(formatter.FormatScheduleValidationError(maxMessageBytesErr))
+		return s.errorResponse(r.FormatScheduleValidationError(maxMessageBytesErr))
 	}
 	trimmedText := strings.TrimSpace(text)
 	if trimmedText == "" {
 		s.logger.Debug("Validation failed: empty command text", "user_id", userID)
-		return s.errorResponse(formatter.FormatEmptyCommandError())
+		return s.errorResponse(r.FormatEmptyCommandError())
 	}
 	s.logger.Debug("Request validation successful", "user_id", userID)
 	return nil
@@ -211,10 +220,10 @@ func (s *ScheduleService) prepareSchedule(userID, channelID, rootID, text string
 	return msg, loc, tz, nil
 }
 
-func (s *ScheduleService) successResponse(msg *types.ScheduledMessage, localTime time.Time, tz, channelID string) *model.CommandResponse {
+func (s *ScheduleService) successResponse(msg *types.ScheduledMessage, localTime time.Time, tz, channelID string, r formatter.Renderer) *model.CommandResponse {
 	s.logger.Debug("Formatting success response", "user_id", msg.UserID, "message_id", msg.ID, "channel_id", channelID, "timezone", tz)
-	channelLink := s.channel.MakeChannelLink(s.channel.GetInfoOrUnknown(channelID))
-	text := formatter.FormatScheduleSuccess(localTime, tz, channelLink, msg.RootID != "")
+	channelLink := s.channel.MakeChannelLink(s.channel.GetInfoOrUnknown(channelID), r.DisplaySettings)
+	text := r.FormatScheduleSuccess(localTime, tz, channelLink, msg.RootID != "")
 	s.logger.Debug("Formatted success response text", "user_id", msg.UserID, "message_id", msg.ID, "response_text", text)
 	return &model.CommandResponse{
 		ResponseType: model.CommandResponseTypeEphemeral,

@@ -68,6 +68,15 @@ type ParsedSchedule struct {
 	Message string
 }
 
+// pastScheduleError retains the resolved instant for localized error rendering.
+type pastScheduleError struct {
+	scheduledTime time.Time
+}
+
+func (e *pastScheduleError) Error() string {
+	return "scheduled time is already in the past -- must be in the future when using a specific date"
+}
+
 func parseScheduleInput(input string) (*ParsedSchedule, error) {
 	trimmedInput := strings.TrimSpace(input)
 	matches := regexFullCommand.FindStringSubmatch(trimmedInput)
@@ -127,7 +136,7 @@ func resolveDateTimeYYYYMMDD(dateStr string, parsedTime time.Time, now time.Time
 	}
 	scheduledTime := time.Date(parsedDatePart.Year(), parsedDatePart.Month(), parsedDatePart.Day(), parsedTime.Hour(), parsedTime.Minute(), 0, 0, loc)
 	if !scheduledTime.After(now) {
-		return time.Time{}, fmt.Errorf("scheduled time '%s' for date '%s' is already in the past -- must be in the future when using a specific date", parsedTime.Format("3:15pm"), dateStr)
+		return time.Time{}, &pastScheduleError{scheduledTime: scheduledTime}
 	}
 	return scheduledTime, nil
 }

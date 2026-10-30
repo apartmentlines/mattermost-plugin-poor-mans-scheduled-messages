@@ -1,0 +1,43 @@
+{
+  "date": "2 January 2006",
+  "months": [
+    "gennaio",
+    "febbraio",
+    "marzo",
+    "aprile",
+    "maggio",
+    "giugno",
+    "luglio",
+    "agosto",
+    "settembre",
+    "ottobre",
+    "novembre",
+    "dicembre"
+  ],
+  "messages": {
+    "scheduled": "%s Messaggio programmato per %s (%s) %s",
+    "empty_command": "Vuoi programmare un messaggio? Istruzioni: %s.",
+    "validation": "%s Errore nella programmazione del messaggio: %v",
+    "schedule_error": "%s Errore nella programmazione del messaggio per %s (%s) %s: %v",
+    "failure": "%s Errore nell’invio del messaggio %s: %v — messaggio originale: %s",
+    "thread": "(nel thread)",
+    "list_header": "### Messaggi programmati",
+    "empty_list": "Non hai messaggi programmati.",
+    "send": "Invia",
+    "delete": "Elimina",
+    "channel": "nel canale: %s",
+    "direct": "in un messaggio diretto con: %s",
+    "unknown_channel": "Canale sconosciuto",
+    "deleted": "%s Il messaggio programmato per **%s** %s è stato eliminato.",
+    "sent": "%s Il messaggio programmato per **%s** %s è stato inviato.",
+    "delete_error": "%s Impossibile eliminare il messaggio: %v",
+    "send_error": "%s Impossibile inviare il messaggio: %v",
+    "list_error": "%s Errore nel recupero dell’elenco dei messaggi: %v",
+    "prepare_error": "Errore nella preparazione del messaggio: %v, input originale: `%v`",
+    "past_time": "La data programmata %s è già passata. Scegli una data futura.",
+    "delivery_status": "Consegna: **%s** · tentativi %d/%d",
+    "delivery_reason": "Motivo: %s",
+    "next_check": "Prossima verifica: %s",
+    "check_delivery": "Verifica consegna"
+  }
+}

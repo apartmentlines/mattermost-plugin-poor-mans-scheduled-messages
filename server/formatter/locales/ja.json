@@ -1,0 +1,43 @@
+{
+  "date": "2006年January2日",
+  "months": [
+    "1月",
+    "2月",
+    "3月",
+    "4月",
+    "5月",
+    "6月",
+    "7月",
+    "8月",
+    "9月",
+    "10月",
+    "11月",
+    "12月"
+  ],
+  "messages": {
+    "scheduled": "%s %s (%s) にメッセージを予約しました %s",
+    "empty_command": "メッセージを予約しますか？手順：%s。",
+    "validation": "%s メッセージの予約エラー：%v",
+    "schedule_error": "%s %s (%s) のメッセージの予約エラー %s：%v",
+    "failure": "%s メッセージの送信エラー %s：%v — 元のメッセージ：%s",
+    "thread": "（スレッド内）",
+    "list_header": "### 予約済みメッセージ",
+    "empty_list": "予約済みメッセージはありません。",
+    "send": "送信",
+    "delete": "削除",
+    "channel": "チャンネル：%s",
+    "direct": "ダイレクトメッセージの相手：%s",
+    "unknown_channel": "不明なチャンネル",
+    "deleted": "%s **%s** に予約されたメッセージ %s を削除しました。",
+    "sent": "%s **%s** に予約されたメッセージ %s を送信しました。",
+    "delete_error": "%s メッセージを削除できません：%v",
+    "send_error": "%s メッセージを送信できません：%v",
+    "list_error": "%s メッセージ一覧の取得エラー：%v",
+    "prepare_error": "メッセージの準備エラー：%v、元の入力：`%v`",
+    "past_time": "予約時刻 %s はすでに過ぎています。未来の時刻を選択してください。",
+    "delivery_status": "配信：**%s** · 試行 %d/%d",
+    "delivery_reason": "理由：%s",
+    "next_check": "次回の確認：%s",
+    "check_delivery": "配信を確認"
+  }
+}

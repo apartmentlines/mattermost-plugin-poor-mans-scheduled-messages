@@ -1,0 +1,43 @@
+{
+  "date": "2. January 2006",
+  "months": [
+    "tammikuuta",
+    "helmikuuta",
+    "maaliskuuta",
+    "huhtikuuta",
+    "toukokuuta",
+    "kesäkuuta",
+    "heinäkuuta",
+    "elokuuta",
+    "syyskuuta",
+    "lokakuuta",
+    "marraskuuta",
+    "joulukuuta"
+  ],
+  "messages": {
+    "scheduled": "%s Viesti ajastettu ajankohtaan %s (%s) %s",
+    "empty_command": "Haluatko ajastaa viestin? Ohjeet: %s.",
+    "validation": "%s Virhe viestin ajastamisessa: %v",
+    "schedule_error": "%s Virhe viestin ajastamisessa ajankohtaan %s (%s) %s: %v",
+    "failure": "%s Virhe viestin lähettämisessä %s: %v — alkuperäinen viesti: %s",
+    "thread": "(ketjussa)",
+    "list_header": "### Ajastetut viestit",
+    "empty_list": "Sinulla ei ole ajastettuja viestejä.",
+    "send": "Lähetä",
+    "delete": "Poista",
+    "channel": "kanavalla: %s",
+    "direct": "yksityisviestissä käyttäjän kanssa: %s",
+    "unknown_channel": "Tuntematon kanava",
+    "deleted": "%s Ajankohtaan **%s** ajastettu viesti %s on poistettu.",
+    "sent": "%s Ajankohtaan **%s** ajastettu viesti %s on lähetetty.",
+    "delete_error": "%s Viestiä ei voitu poistaa: %v",
+    "send_error": "%s Viestiä ei voitu lähettää: %v",
+    "list_error": "%s Virhe viestiluettelon hakemisessa: %v",
+    "prepare_error": "Virhe viestin valmistelussa: %v, alkuperäinen syöte: `%v`",
+    "past_time": "Ajastettu aika %s on jo mennyt. Valitse tuleva ajankohta.",
+    "delivery_status": "Toimitus: **%s** · yritykset %d/%d",
+    "delivery_reason": "Syy: %s",
+    "next_check": "Seuraava tarkistus: %s",
+    "check_delivery": "Tarkista toimitus"
+  }
+}

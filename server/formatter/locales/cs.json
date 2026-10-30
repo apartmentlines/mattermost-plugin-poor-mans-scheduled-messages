@@ -1,0 +1,43 @@
+{
+  "date": "2. January 2006",
+  "months": [
+    "ledna",
+    "února",
+    "března",
+    "dubna",
+    "května",
+    "června",
+    "července",
+    "srpna",
+    "září",
+    "října",
+    "listopadu",
+    "prosince"
+  ],
+  "messages": {
+    "scheduled": "%s Zpráva naplánována na %s (%s) %s",
+    "empty_command": "Chcete naplánovat zprávu? Návod: %s.",
+    "validation": "%s Chyba při plánování zprávy: %v",
+    "schedule_error": "%s Chyba při plánování zprávy na %s (%s) %s: %v",
+    "failure": "%s Chyba při odesílání zprávy %s: %v — původní zpráva: %s",
+    "thread": "(ve vlákně)",
+    "list_header": "### Naplánované zprávy",
+    "empty_list": "Nemáte žádné naplánované zprávy.",
+    "send": "Odeslat",
+    "delete": "Smazat",
+    "channel": "v kanálu: %s",
+    "direct": "v přímé zprávě s: %s",
+    "unknown_channel": "Neznámý kanál",
+    "deleted": "%s Zpráva naplánovaná na **%s** %s byla smazána.",
+    "sent": "%s Zpráva naplánovaná na **%s** %s byla odeslána.",
+    "delete_error": "%s Zprávu nelze smazat: %v",
+    "send_error": "%s Zprávu nelze odeslat: %v",
+    "list_error": "%s Chyba při načítání seznamu zpráv: %v",
+    "prepare_error": "Chyba při přípravě zprávy: %v, původní vstup: `%v`",
+    "past_time": "Naplánovaný čas %s již uplynul. Vyberte čas v budoucnosti.",
+    "delivery_status": "Doručení: **%s** · pokusy %d/%d",
+    "delivery_reason": "Důvod: %s",
+    "next_check": "Další kontrola: %s",
+    "check_delivery": "Zkontrolovat doručení"
+  }
+}

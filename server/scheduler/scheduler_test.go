@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/adapters/mm"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/adapters/mock"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/testutil"
@@ -14,378 +13,180 @@ import (
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/store"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/stretchr/testify/assert"
+	"github.com/mattermost/mattermost/server/public/pluginapi"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
-func TestProcessDueMessages_PostSuccess(t *testing.T) {
+func setupDelivery(t *testing.T) (*Scheduler, ports.Store, *testutil.MemoryKV, *mock.MockPostService, *types.ScheduledMessage, *testutil.FakeClock) {
+	t.Helper()
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	poster := mock.NewMockPostService(ctrl)
+	ch := mock.NewMockChannelService(ctrl)
+	info := &ports.ChannelInfo{ChannelID: "channel"}
+	ch.EXPECT().GetInfoOrUnknown("channel").Return(info).AnyTimes()
+	ch.EXPECT().MakeChannelLink(info, gomock.Any()).Return("channel").AnyTimes()
+	poster.EXPECT().DM("bot", "user", gomock.Any()).Return(nil).AnyTimes()
+	db := testutil.NewMemoryKV()
+	st := store.NewKVStore(testutil.FakeLogger{}, &pluginapi.NewClient(db, nil).KV, nil, 100)
+	clk := &testutil.FakeClock{NowTime: time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)}
+	msg := &types.ScheduledMessage{ID: "job", UserID: "user", ChannelID: "channel", RootID: "thread", MessageContent: "text", PostAt: clk.Now(), Timezone: "UTC"}
+	require.NoError(t, st.SaveScheduledMessage(msg.UserID, msg))
+	return New(testutil.FakeLogger{}, poster, st, ch, "bot", clk, nil), st, db, poster, msg, clk
+}
 
-	mockPoster := mock.NewMockPostService(ctrl)
-	mockKV := mock.NewMockKVService(ctrl)
-	mockChannel := mock.NewMockChannelService(ctrl)
+func TestSendNowSuccessKeepsReceiptAndRejectsStaleSend(t *testing.T) {
+	s, st, _, poster, msg, _ := setupDelivery(t)
+	poster.EXPECT().CreatePost(gomock.Any()).DoAndReturn(func(post *model.Post) error {
+		require.Equal(t, msg.MessageContent, post.Message)
+		require.Equal(t, msg.RootID, post.RootId)
+		require.Equal(t, msg.ID, post.GetProp(types.ScheduledJobProp))
+		require.NotEmpty(t, post.PendingPostId)
+		post.Id = "post"
+		return nil
+	})
+	require.NoError(t, s.SendNow(msg))
+	got, err := st.GetScheduledMessage(msg.ID)
+	require.NoError(t, err)
+	require.Equal(t, types.StateSent, got.State)
+	require.Equal(t, "post", got.PostID)
+	require.Empty(t, got.MessageContent)
+	require.ErrorIs(t, s.SendNow(msg), types.ErrMessageFinal)
+	ids, err := st.ListUserMessageIDs(msg.UserID)
+	require.NoError(t, err)
+	require.Empty(t, ids)
+}
 
-	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, mm.NewListMatchingService(), constants.MaxUserMessages)
-	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
-	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
-
-	now := clk.Now()
-	msg := &types.ScheduledMessage{
-		ID:             "uuid-1",
-		UserID:         "user",
-		ChannelID:      "chan",
-		PostAt:         now.Add(-time.Minute),
-		MessageContent: "hi",
-		Timezone:       "UTC",
+func TestManualAndTimerShareAtomicClaim(t *testing.T) {
+	for _, timerFirst := range []bool{false, true} {
+		t.Run(map[bool]string{true: "timer", false: "manual"}[timerFirst], func(t *testing.T) {
+			s, st, db, poster, msg, clk := setupDelivery(t)
+			started := make(chan struct{})
+			release := make(chan struct{})
+			poster.EXPECT().CreatePost(gomock.Any()).DoAndReturn(func(post *model.Post) error { close(started); <-release; post.Id = "post"; return nil })
+			finished := make(chan error, 1)
+			go func() {
+				if timerFirst {
+					s.processDueMessages()
+					finished <- nil
+				} else {
+					finished <- s.SendNow(msg)
+				}
+			}()
+			<-started
+			otherStore := store.NewKVStore(testutil.FakeLogger{}, &pluginapi.NewClient(db, nil).KV, nil, 100)
+			other := New(testutil.FakeLogger{}, poster, otherStore, s.linker, "bot", clk, nil)
+			if timerFirst {
+				require.ErrorIs(t, other.SendNow(msg), types.ErrMessageBusy)
+			} else {
+				other.processDueMessages()
+			}
+			require.ErrorIs(t, st.DeleteScheduledMessage(msg.UserID, msg.ID), types.ErrMessageBusy)
+			close(release)
+			require.NoError(t, <-finished)
+		})
 	}
-	msgKey := testutil.SchedKey(msg.ID)
-	userIndexKey := testutil.IndexKey(msg.UserID)
+}
 
-	mockKV.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.Any()).Return([]string{msgKey}, nil)
-	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msg).Return(nil).Times(1)
-	mockKV.EXPECT().Get(userIndexKey, gomock.Any()).SetArg(1, []string{msg.ID}).Return(nil)
-	mockKV.EXPECT().Set(userIndexKey, gomock.Eq([]string{})).Return(true, nil)
-	mockKV.EXPECT().Delete(msgKey).Return(nil)
-	mockPoster.EXPECT().CreatePost(gomock.Eq(&model.Post{
-		ChannelId: msg.ChannelID,
-		RootId:    msg.RootID,
-		Message:   msg.MessageContent,
-		UserId:    msg.UserID,
-	})).Return(nil)
+func TestRestartAfterPublicationBeforeReceiptDoesNotRepublish(t *testing.T) {
+	s, st, db, poster, msg, clk := setupDelivery(t)
+	var published *model.Post
+	poster.EXPECT().CreatePost(gomock.Any()).DoAndReturn(func(post *model.Post) error {
+		post.Id = "post"
+		published = post
+		db.FailWrites(constants.SchedPrefix+msg.ID, 1)
+		return nil
+	})
+	require.Error(t, s.SendNow(msg))
+	got, err := st.GetScheduledMessage(msg.ID)
+	require.NoError(t, err)
+	require.Equal(t, types.StateSending, got.State)
+	clk.NowTime = clk.Now().Add(types.DeliveryLease)
+	poster.EXPECT().GetPostsForChannel(msg.ChannelID, 0, 100).Return(&model.PostList{Order: []string{published.Id}, Posts: map[string]*model.Post{published.Id: published}}, nil)
+	restarted := New(testutil.FakeLogger{}, poster, store.NewKVStore(testutil.FakeLogger{}, &pluginapi.NewClient(db, nil).KV, nil, 100), s.linker, "bot", clk, nil)
+	restarted.processDueMessages()
+	got, err = st.GetScheduledMessage(msg.ID)
+	require.NoError(t, err)
+	require.Equal(t, types.StateSent, got.State)
+	require.Equal(t, published.Id, got.PostID)
+}
 
+func TestTimeoutAfterCommitReconcilesWithoutRepublishing(t *testing.T) {
+	s, st, _, poster, msg, _ := setupDelivery(t)
+	var published *model.Post
+	poster.EXPECT().CreatePost(gomock.Any()).DoAndReturn(func(post *model.Post) error { post.Id = "post"; published = post; return errors.New("lost response") })
+	require.Error(t, s.SendNow(msg))
+	got, err := st.GetScheduledMessage(msg.ID)
+	require.NoError(t, err)
+	require.Equal(t, types.StateUncertain, got.State)
+	poster.EXPECT().GetPostsForChannel(msg.ChannelID, 0, 100).Return(&model.PostList{Order: []string{"post"}, Posts: map[string]*model.Post{"post": published}}, nil)
+	require.NoError(t, s.SendNow(msg))
+	got, err = st.GetScheduledMessage(msg.ID)
+	require.NoError(t, err)
+	require.Equal(t, types.StateSent, got.State)
+}
+
+func TestUnknownOutcomeWithoutPostRemainsDurable(t *testing.T) {
+	s, st, _, poster, msg, _ := setupDelivery(t)
+	poster.EXPECT().CreatePost(gomock.Any()).Return(&model.AppError{StatusCode: 503})
+	require.Error(t, s.SendNow(msg))
+	poster.EXPECT().GetPostsForChannel(msg.ChannelID, 0, 100).Return(&model.PostList{}, nil).Times(2)
+	for i := 0; i < 2; i++ {
+		require.ErrorIs(t, s.SendNow(msg), types.ErrDeliveryUncertain)
+	}
+	got, err := st.GetScheduledMessage(msg.ID)
+	require.NoError(t, err)
+	require.Equal(t, types.StateUncertain, got.State)
+	require.Equal(t, msg.MessageContent, got.MessageContent)
+	require.Equal(t, 1, got.Attempts)
+}
+
+func TestRateLimitedDeliveryRetriesWithBackoffAndLimit(t *testing.T) {
+	s, st, _, poster, msg, clk := setupDelivery(t)
+	poster.EXPECT().CreatePost(gomock.Any()).Return(&model.AppError{StatusCode: 429}).Times(types.MaxDeliveryAttempts)
+	for attempt := 1; attempt <= types.MaxDeliveryAttempts; attempt++ {
+		s.processDueMessages()
+		got, err := st.GetScheduledMessage(msg.ID)
+		require.NoError(t, err)
+		require.Equal(t, attempt, got.Attempts)
+		if attempt < types.MaxDeliveryAttempts {
+			require.Equal(t, types.StateRetry, got.State)
+			s.processDueMessages() // Too early: no extra call to CreatePost.
+			clk.NowTime = got.NextAttemptAt
+		} else {
+			require.Equal(t, types.StateFailed, got.State)
+		}
+	}
 	s.processDueMessages()
 }
 
-func TestProcessDueMessages_PostFailure(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPoster := mock.NewMockPostService(ctrl)
-	mockKV := mock.NewMockKVService(ctrl)
-	mockChannel := mock.NewMockChannelService(ctrl)
-
-	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, mm.NewListMatchingService(), constants.MaxUserMessages)
-	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
-	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
-
-	now := clk.Now()
-	msg := &types.ScheduledMessage{
-		ID:             "uuid-2",
-		UserID:         "user",
-		ChannelID:      "chan",
-		PostAt:         now.Add(-time.Minute),
-		MessageContent: "hi",
-		Timezone:       "UTC",
-	}
-	msgKey := testutil.SchedKey(msg.ID)
-	userIndexKey := testutil.IndexKey(msg.UserID)
-	postErr := errors.New("fail")
-	channelInfo := &ports.ChannelInfo{ChannelID: msg.ChannelID, ChannelLink: "some-link"}
-
-	mockKV.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.Any()).Return([]string{msgKey}, nil)
-	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msg).Return(nil).Times(1)
-	mockKV.EXPECT().Get(userIndexKey, gomock.Any()).SetArg(1, []string{msg.ID}).Return(nil)
-	mockKV.EXPECT().Set(userIndexKey, gomock.Eq([]string{})).Return(true, nil)
-	mockKV.EXPECT().Delete(msgKey).Return(nil)
-	mockPoster.EXPECT().CreatePost(gomock.Any()).Return(postErr)
-	mockChannel.EXPECT().GetInfoOrUnknown(msg.ChannelID).Return(channelInfo)
-	mockChannel.EXPECT().MakeChannelLink(channelInfo).Return("in channel: some-link")
-	mockPoster.EXPECT().DM("bot", msg.UserID, gomock.Any()).Return(nil)
-
+func TestExpiredProcessingClaimCanBeSafelyRetried(t *testing.T) {
+	s, st, _, poster, msg, clk := setupDelivery(t)
+	_, err := st.ClaimScheduledMessage(msg.UserID, msg.ID, clk.Now(), true)
+	require.NoError(t, err)
+	clk.NowTime = clk.Now().Add(types.DeliveryLease)
+	poster.EXPECT().CreatePost(gomock.Any()).DoAndReturn(func(post *model.Post) error { post.Id = "post"; return nil })
 	s.processDueMessages()
+	got, err := st.GetScheduledMessage(msg.ID)
+	require.NoError(t, err)
+	require.Equal(t, types.StateSent, got.State)
 }
 
-func TestProcessDueMessages_NotDueYet(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPoster := mock.NewMockPostService(ctrl)
-	mockKV := mock.NewMockKVService(ctrl)
-	mockChannel := mock.NewMockChannelService(ctrl)
-
-	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, mm.NewListMatchingService(), constants.MaxUserMessages)
-	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
-	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
-
-	now := clk.Now()
-	msg := &types.ScheduledMessage{
-		ID:             "uuid-3",
-		UserID:         "user",
-		ChannelID:      "chan",
-		PostAt:         now.Add(time.Minute),
-		MessageContent: "hi",
-		Timezone:       "UTC",
-	}
-	msgKey := testutil.SchedKey(msg.ID)
-
-	mockKV.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.Any()).Return([]string{msgKey}, nil)
-	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msg).Return(nil)
-
-	s.processDueMessages()
+func TestStartFailureNeverPublishes(t *testing.T) {
+	s, st, db, _, msg, clk := setupDelivery(t)
+	claim, err := st.ClaimScheduledMessage(msg.UserID, msg.ID, clk.Now(), true)
+	require.NoError(t, err)
+	db.FailWrites(constants.SchedPrefix+msg.ID, 1)
+	require.Error(t, st.StartDelivery(claim, clk.Now()))
+	clk.NowTime = clk.Now().Add(time.Minute)
+	s.processDueMessages() // Lease is still active, no publication.
 }
 
-func TestProcessDueMessages_ListError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPoster := mock.NewMockPostService(ctrl)
-	mockKV := mock.NewMockKVService(ctrl)
-	mockChannel := mock.NewMockChannelService(ctrl)
-
-	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, mm.NewListMatchingService(), constants.MaxUserMessages)
-	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
-	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
-
-	mockKV.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.Any()).Return(nil, errors.New("boom"))
-
-	s.processDueMessages()
-}
-
-func TestScheduler_StartAndStop(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPoster := mock.NewMockPostService(ctrl)
-	mockKV := mock.NewMockKVService(ctrl)
-	mockChannel := mock.NewMockChannelService(ctrl)
-
-	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, mm.NewListMatchingService(), constants.MaxUserMessages)
-	clk := testutil.FakeClock{NowTime: time.Date(2023, 1, 1, 10, 30, 59, 950*1000*1000, time.UTC)}
-	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
-
-	now := clk.Now()
-	msg := &types.ScheduledMessage{
-		ID:             "uuid-4",
-		UserID:         "user",
-		ChannelID:      "chan",
-		PostAt:         now.Add(-time.Minute),
-		MessageContent: "hi",
-		Timezone:       "UTC",
-	}
-	msgKey := testutil.SchedKey(msg.ID)
-	userIndexKey := testutil.IndexKey(msg.UserID)
-
-	mockKV.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.Any()).Return([]string{msgKey}, nil).MinTimes(1)
-	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msg).Return(nil).MinTimes(1)
-	mockKV.EXPECT().Get(userIndexKey, gomock.Any()).SetArg(1, []string{msg.ID}).Return(nil).MinTimes(1)
-	mockKV.EXPECT().Set(userIndexKey, gomock.Eq([]string{})).Return(true, nil).MinTimes(1)
-	mockKV.EXPECT().Delete(msgKey).Return(nil).MinTimes(1)
-	mockPoster.EXPECT().CreatePost(gomock.Any()).Return(nil).MinTimes(1)
-
+func TestSchedulerRunCanStop(t *testing.T) {
+	s, _, _, _, _, _ := setupDelivery(t)
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		s.run()
-	}()
-
-	time.Sleep(100 * time.Millisecond)
+	go func() { defer wg.Done(); s.run() }()
 	s.Stop()
 	wg.Wait()
-}
-
-func TestProcessDueMessages_LoadMessageError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPoster := mock.NewMockPostService(ctrl)
-	mockKV := mock.NewMockKVService(ctrl)
-	mockChannel := mock.NewMockChannelService(ctrl)
-
-	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, mm.NewListMatchingService(), constants.MaxUserMessages)
-	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
-	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
-
-	msgID := "uuid-5"
-	msgKey := testutil.SchedKey(msgID)
-
-	// ListScheduledMessages will call ListKeys
-	mockKV.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.Any()).Return([]string{msgKey}, nil)
-	// Inside ListScheduledMessages, the Get for this key will fail
-	mockKV.EXPECT().Get(msgKey, gomock.Any()).Return(errors.New("simulated load error for this message"))
-
-	// As a result, store.ListScheduledMessages returns an empty list.
-	// The scheduler will then process an empty list, and no further KV operations (like Delete) for this message will occur.
-
-	s.processDueMessages()
-}
-
-func TestProcessDueMessages_DeleteScheduleError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPoster := mock.NewMockPostService(ctrl)
-	mockKV := mock.NewMockKVService(ctrl)
-	mockChannel := mock.NewMockChannelService(ctrl)
-
-	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, mm.NewListMatchingService(), constants.MaxUserMessages)
-	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
-	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
-
-	now := clk.Now()
-	msg := &types.ScheduledMessage{
-		ID: "uuid-6", UserID: "u", ChannelID: "c",
-		PostAt: now.Add(-time.Minute), MessageContent: "x", Timezone: "UTC",
-	}
-	msgKey := testutil.SchedKey(msg.ID)
-
-	mockKV.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.Any()).Return([]string{msgKey}, nil)
-	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msg).Return(nil).Times(1)
-	mockKV.EXPECT().Delete(msgKey).Return(errors.New("kv fail"))
-
-	s.processDueMessages()
-}
-
-func TestProcessDueMessages_DMError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPoster := mock.NewMockPostService(ctrl)
-	mockKV := mock.NewMockKVService(ctrl)
-	mockChannel := mock.NewMockChannelService(ctrl)
-
-	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, mm.NewListMatchingService(), constants.MaxUserMessages)
-	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
-	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
-
-	now := clk.Now()
-	msg := &types.ScheduledMessage{
-		ID: "uuid-7", UserID: "u", ChannelID: "c",
-		PostAt: now.Add(-time.Minute), MessageContent: "x", Timezone: "UTC",
-	}
-	msgKey := testutil.SchedKey(msg.ID)
-	userIndexKey := testutil.IndexKey(msg.UserID)
-	postErr := errors.New("post fail")
-	dmErr := errors.New("dm fail")
-	channelInfo := &ports.ChannelInfo{ChannelID: msg.ChannelID, ChannelLink: "some-link"}
-
-	mockKV.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.Any()).Return([]string{msgKey}, nil)
-	mockKV.EXPECT().Get(msgKey, gomock.Any()).SetArg(1, *msg).Return(nil).Times(1)
-	mockKV.EXPECT().Get(userIndexKey, gomock.Any()).SetArg(1, []string{msg.ID}).Return(nil)
-	mockKV.EXPECT().Set(userIndexKey, gomock.Eq([]string{})).Return(true, nil)
-	mockKV.EXPECT().Delete(msgKey).Return(nil)
-	mockPoster.EXPECT().CreatePost(gomock.Any()).Return(postErr)
-	mockChannel.EXPECT().GetInfoOrUnknown(msg.ChannelID).Return(channelInfo)
-	mockChannel.EXPECT().MakeChannelLink(channelInfo).Return("in channel: some-link")
-	mockPoster.EXPECT().DM("bot", msg.UserID, gomock.Any()).Return(dmErr)
-
-	s.processDueMessages()
-}
-
-func TestProcessDueMessages_EmptyIDMap(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPoster := mock.NewMockPostService(ctrl)
-	mockKV := mock.NewMockKVService(ctrl)
-	mockChannel := mock.NewMockChannelService(ctrl)
-
-	st := store.NewKVStore(testutil.FakeLogger{}, mockKV, mm.NewListMatchingService(), constants.MaxUserMessages)
-	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
-	s := New(testutil.FakeLogger{}, mockPoster, st, mockChannel, "bot", clk)
-
-	mockKV.EXPECT().ListKeys(0, constants.MaxFetchScheduledMessages, gomock.Any()).Return([]string{}, nil)
-
-	s.processDueMessages()
-}
-
-func TestSendNow_Success(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPoster := mock.NewMockPostService(ctrl)
-	mockStore := mock.NewMockStore(ctrl)
-	mockChannel := mock.NewMockChannelService(ctrl)
-
-	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
-	s := New(testutil.FakeLogger{}, mockPoster, mockStore, mockChannel, "bot", clk)
-
-	msg := &types.ScheduledMessage{
-		ID:             "uuid-send-1",
-		UserID:         "user",
-		ChannelID:      "chan",
-		RootID:         "root-post",
-		PostAt:         clk.Now(),
-		MessageContent: "hi",
-		Timezone:       "UTC",
-	}
-
-	mockStore.EXPECT().DeleteScheduledMessage(msg.UserID, msg.ID).Return(nil)
-	mockPoster.EXPECT().CreatePost(gomock.Eq(&model.Post{
-		ChannelId: msg.ChannelID,
-		RootId:    msg.RootID,
-		Message:   msg.MessageContent,
-		UserId:    msg.UserID,
-	})).Return(nil)
-
-	err := s.SendNow(msg)
-
-	require.NoError(t, err)
-}
-
-func TestSendNow_DeleteError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPoster := mock.NewMockPostService(ctrl)
-	mockStore := mock.NewMockStore(ctrl)
-	mockChannel := mock.NewMockChannelService(ctrl)
-
-	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
-	s := New(testutil.FakeLogger{}, mockPoster, mockStore, mockChannel, "bot", clk)
-
-	msg := &types.ScheduledMessage{
-		ID:             "uuid-send-2",
-		UserID:         "user",
-		ChannelID:      "chan",
-		PostAt:         clk.Now(),
-		MessageContent: "hi",
-		Timezone:       "UTC",
-	}
-
-	deleteErr := errors.New("delete failed")
-	mockStore.EXPECT().DeleteScheduledMessage(msg.UserID, msg.ID).Return(deleteErr)
-	mockPoster.EXPECT().CreatePost(gomock.Any()).Times(0)
-
-	err := s.SendNow(msg)
-
-	require.Error(t, err)
-	assert.EqualError(t, err, deleteErr.Error())
-}
-
-func TestSendNow_PostError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPoster := mock.NewMockPostService(ctrl)
-	mockStore := mock.NewMockStore(ctrl)
-	mockChannel := mock.NewMockChannelService(ctrl)
-
-	clk := testutil.FakeClock{NowTime: time.Now().UTC()}
-	s := New(testutil.FakeLogger{}, mockPoster, mockStore, mockChannel, "bot", clk)
-
-	msg := &types.ScheduledMessage{
-		ID:             "uuid-send-3",
-		UserID:         "user",
-		ChannelID:      "chan",
-		PostAt:         clk.Now(),
-		MessageContent: "hi",
-		Timezone:       "UTC",
-	}
-
-	postErr := errors.New("post failed")
-	channelInfo := &ports.ChannelInfo{ChannelID: msg.ChannelID, ChannelLink: "some-link"}
-
-	mockStore.EXPECT().DeleteScheduledMessage(msg.UserID, msg.ID).Return(nil)
-	mockPoster.EXPECT().CreatePost(gomock.Any()).Return(postErr)
-	mockChannel.EXPECT().GetInfoOrUnknown(msg.ChannelID).Return(channelInfo)
-	mockChannel.EXPECT().MakeChannelLink(channelInfo).Return("in channel: some-link")
-	mockPoster.EXPECT().DM("bot", msg.UserID, gomock.Any()).Return(nil)
-
-	err := s.SendNow(msg)
-
-	require.Error(t, err)
-	assert.EqualError(t, err, postErr.Error())
 }

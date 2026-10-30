@@ -1,0 +1,43 @@
+{
+  "date": "2. January 2006",
+  "months": [
+    "januar",
+    "februar",
+    "marts",
+    "april",
+    "maj",
+    "juni",
+    "juli",
+    "august",
+    "september",
+    "oktober",
+    "november",
+    "december"
+  ],
+  "messages": {
+    "scheduled": "%s Besked planlagt til %s (%s) %s",
+    "empty_command": "Vil du planlægge en besked? Vejledning: %s.",
+    "validation": "%s Fejl ved planlægning af beskeden: %v",
+    "schedule_error": "%s Fejl ved planlægning af beskeden til %s (%s) %s: %v",
+    "failure": "%s Fejl ved afsendelse af beskeden %s: %v — oprindelig besked: %s",
+    "thread": "(i tråd)",
+    "list_header": "### Planlagte beskeder",
+    "empty_list": "Du har ingen planlagte beskeder.",
+    "send": "Send",
+    "delete": "Slet",
+    "channel": "i kanal: %s",
+    "direct": "i direkte besked med: %s",
+    "unknown_channel": "Ukendt kanal",
+    "deleted": "%s Beskeden planlagt til **%s** %s er slettet.",
+    "sent": "%s Beskeden planlagt til **%s** %s er sendt.",
+    "delete_error": "%s Kunne ikke slette beskeden: %v",
+    "send_error": "%s Kunne ikke sende beskeden: %v",
+    "list_error": "%s Fejl ved hentning af beskedlisten: %v",
+    "prepare_error": "Fejl ved forberedelse af beskeden: %v, oprindelig indtastning: `%v`",
+    "past_time": "Det planlagte tidspunkt %s er allerede passeret. Vælg et tidspunkt i fremtiden.",
+    "delivery_status": "Levering: **%s** · forsøg %d/%d",
+    "delivery_reason": "Årsag: %s",
+    "next_check": "Næste kontrol: %s",
+    "check_delivery": "Kontrollér levering"
+  }
+}

@@ -68,6 +68,21 @@ func (mr *MockPostServiceMockRecorder) DM(botID, userID, post any) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DM", reflect.TypeOf((*MockPostService)(nil).DM), botID, userID, post)
 }
 
+// GetPostsForChannel mocks base method.
+func (m *MockPostService) GetPostsForChannel(channelID string, page, perPage int) (*model.PostList, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPostsForChannel", channelID, page, perPage)
+	ret0, _ := ret[0].(*model.PostList)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetPostsForChannel indicates an expected call of GetPostsForChannel.
+func (mr *MockPostServiceMockRecorder) GetPostsForChannel(channelID, page, perPage any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPostsForChannel", reflect.TypeOf((*MockPostService)(nil).GetPostsForChannel), channelID, page, perPage)
+}
+
 // SendEphemeralPost mocks base method.
 func (m *MockPostService) SendEphemeralPost(userID string, post *model.Post) {
 	m.ctrl.T.Helper()

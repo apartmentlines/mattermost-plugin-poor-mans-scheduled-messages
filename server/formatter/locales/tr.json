@@ -1,0 +1,43 @@
+{
+  "date": "2 January 2006",
+  "months": [
+    "Ocak",
+    "Şubat",
+    "Mart",
+    "Nisan",
+    "Mayıs",
+    "Haziran",
+    "Temmuz",
+    "Ağustos",
+    "Eylül",
+    "Ekim",
+    "Kasım",
+    "Aralık"
+  ],
+  "messages": {
+    "scheduled": "%s Mesaj %s (%s) için zamanlandı %s",
+    "empty_command": "Mesaj zamanlamak mı istiyorsunuz? Talimatlar: %s.",
+    "validation": "%s Mesaj zamanlama hatası: %v",
+    "schedule_error": "%s Mesajı %s (%s) için zamanlama hatası %s: %v",
+    "failure": "%s Mesaj gönderme hatası %s: %v — asıl mesaj: %s",
+    "thread": "(konuda)",
+    "list_header": "### Zamanlanmış mesajlar",
+    "empty_list": "Zamanlanmış mesajınız yok.",
+    "send": "Gönder",
+    "delete": "Sil",
+    "channel": "kanalda: %s",
+    "direct": "doğrudan mesajda: %s",
+    "unknown_channel": "Bilinmeyen kanal",
+    "deleted": "%s **%s** için zamanlanan mesaj %s silindi.",
+    "sent": "%s **%s** için zamanlanan mesaj %s gönderildi.",
+    "delete_error": "%s Mesaj silinemedi: %v",
+    "send_error": "%s Mesaj gönderilemedi: %v",
+    "list_error": "%s Mesaj listesi alınamadı: %v",
+    "prepare_error": "Mesaj hazırlama hatası: %v, asıl girdi: `%v`",
+    "past_time": "Planlanan zaman %s geçmişte kalmış. Gelecekte bir zaman seçin.",
+    "delivery_status": "Teslimat: **%s** · denemeler %d/%d",
+    "delivery_reason": "Neden: %s",
+    "next_check": "Sonraki kontrol: %s",
+    "check_delivery": "Teslimatı kontrol et"
+  }
+}

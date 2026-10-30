@@ -1,0 +1,43 @@
+{
+  "date": "2006年January2日",
+  "months": [
+    "一月",
+    "二月",
+    "三月",
+    "四月",
+    "五月",
+    "六月",
+    "七月",
+    "八月",
+    "九月",
+    "十月",
+    "十一月",
+    "十二月"
+  ],
+  "messages": {
+    "scheduled": "%s 訊息已排定於 %s (%s) %s",
+    "empty_command": "想排程訊息？使用 %s 查看說明。",
+    "validation": "%s 排程訊息時發生錯誤：%v",
+    "schedule_error": "%s 排定於 %s (%s) 的訊息發生錯誤 %s：%v",
+    "failure": "%s 傳送訊息時發生錯誤 %s：%v — 原始訊息：%s",
+    "thread": "（討論串內）",
+    "list_header": "### 排程訊息",
+    "empty_list": "您沒有排程訊息。",
+    "send": "傳送",
+    "delete": "刪除",
+    "channel": "在頻道：%s",
+    "direct": "在私人訊息中與：%s",
+    "unknown_channel": "未知頻道",
+    "deleted": "%s 已刪除排定於 **%s** 的訊息 %s。",
+    "sent": "%s 已傳送排定於 **%s** 的訊息 %s。",
+    "delete_error": "%s 無法刪除訊息：%v",
+    "send_error": "%s 無法傳送訊息：%v",
+    "list_error": "%s 取得訊息清單時發生錯誤：%v",
+    "prepare_error": "準備訊息時發生錯誤：%v，原始輸入：`%v`",
+    "past_time": "排定的時間 %s 已過。請選擇未來的時間。",
+    "delivery_status": "傳送：**%s** · 嘗試 %d/%d",
+    "delivery_reason": "原因：%s",
+    "next_check": "下次檢查：%s",
+    "check_delivery": "檢查傳送"
+  }
+}

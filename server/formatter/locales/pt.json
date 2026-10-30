@@ -1,0 +1,43 @@
+{
+  "date": "2 de January de 2006",
+  "months": [
+    "janeiro",
+    "fevereiro",
+    "março",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro"
+  ],
+  "messages": {
+    "scheduled": "%s Mensagem agendada para %s (%s) %s",
+    "empty_command": "Quer agendar uma mensagem? Instruções: %s.",
+    "validation": "%s Erro ao agendar a mensagem: %v",
+    "schedule_error": "%s Erro ao agendar a mensagem para %s (%s) %s: %v",
+    "failure": "%s Erro ao enviar a mensagem %s: %v — mensagem original: %s",
+    "thread": "(na conversa)",
+    "list_header": "### Mensagens agendadas",
+    "empty_list": "Não tem mensagens agendadas.",
+    "send": "Enviar",
+    "delete": "Eliminar",
+    "channel": "no canal: %s",
+    "direct": "em mensagem direta com: %s",
+    "unknown_channel": "Canal desconhecido",
+    "deleted": "%s A mensagem agendada para **%s** %s foi eliminada.",
+    "sent": "%s A mensagem agendada para **%s** %s foi enviada.",
+    "delete_error": "%s Não foi possível eliminar a mensagem: %v",
+    "send_error": "%s Não foi possível enviar a mensagem: %v",
+    "list_error": "%s Erro ao obter a lista de mensagens: %v",
+    "prepare_error": "Erro ao preparar a mensagem: %v, entrada original: `%v`",
+    "past_time": "A data agendada %s já passou. Escolha uma data futura.",
+    "delivery_status": "Entrega: **%s** · tentativas %d/%d",
+    "delivery_reason": "Motivo: %s",
+    "next_check": "Próxima verificação: %s",
+    "check_delivery": "Verificar entrega"
+  }
+}

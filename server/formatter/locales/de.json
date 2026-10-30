@@ -1,0 +1,43 @@
+{
+  "date": "2. January 2006",
+  "months": [
+    "Januar",
+    "Februar",
+    "März",
+    "April",
+    "Mai",
+    "Juni",
+    "Juli",
+    "August",
+    "September",
+    "Oktober",
+    "November",
+    "Dezember"
+  ],
+  "messages": {
+    "scheduled": "%s Nachricht geplant für %s (%s) %s",
+    "empty_command": "Nachricht planen? Anleitung: %s.",
+    "validation": "%s Fehler beim Planen der Nachricht: %v",
+    "schedule_error": "%s Fehler beim Planen der Nachricht für %s (%s) %s: %v",
+    "failure": "%s Fehler beim Senden der Nachricht %s: %v — ursprüngliche Nachricht: %s",
+    "thread": "(im Thread)",
+    "list_header": "### Geplante Nachrichten",
+    "empty_list": "Du hast keine geplanten Nachrichten.",
+    "send": "Senden",
+    "delete": "Löschen",
+    "channel": "im Kanal: %s",
+    "direct": "in einer Direktnachricht mit: %s",
+    "unknown_channel": "Unbekannter Kanal",
+    "deleted": "%s Die für **%s** %s geplante Nachricht wurde gelöscht.",
+    "sent": "%s Die für **%s** %s geplante Nachricht wurde gesendet.",
+    "delete_error": "%s Nachricht konnte nicht gelöscht werden: %v",
+    "send_error": "%s Nachricht konnte nicht gesendet werden: %v",
+    "list_error": "%s Fehler beim Abrufen der Nachrichtenliste: %v",
+    "prepare_error": "Fehler beim Vorbereiten der Nachricht: %v, ursprüngliche Eingabe: `%v`",
+    "past_time": "Der geplante Zeitpunkt %s liegt bereits in der Vergangenheit. Wähle einen zukünftigen Zeitpunkt.",
+    "delivery_status": "Zustellung: **%s** · Versuche %d/%d",
+    "delivery_reason": "Grund: %s",
+    "next_check": "Nächste Prüfung: %s",
+    "check_delivery": "Zustellung prüfen"
+  }
+}

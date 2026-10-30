@@ -2,6 +2,7 @@ package channel
 
 import (
 	"errors"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"reflect"
 	"testing"
 
@@ -379,7 +380,7 @@ func TestMakeChannelLink(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			got := ch.MakeChannelLink(tc.info)
+			got := ch.MakeChannelLink(tc.info, types.DisplaySettings{})
 			if got != tc.want {
 				t.Fatalf("want %q, got %q", tc.want, got)
 			}

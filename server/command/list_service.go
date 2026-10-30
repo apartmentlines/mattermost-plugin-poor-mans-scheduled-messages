@@ -1,7 +1,7 @@
 package command
 
 import (
-	"fmt"
+	"errors"
 	"sort"
 	"time"
 
@@ -14,38 +14,41 @@ import (
 
 // ListService builds scheduled message lists.
 type ListService struct {
-	logger  ports.Logger
-	store   ports.Store
-	channel ports.ChannelService
+	presentation ports.DisplayPreferences
+	logger       ports.Logger
+	store        ports.Store
+	channel      ports.ChannelService
 }
 
 // NewListService constructs a ListService.
-func NewListService(logger ports.Logger, store ports.Store, channel ports.ChannelService) *ListService {
+func NewListService(logger ports.Logger, store ports.Store, channel ports.ChannelService, presentation ports.DisplayPreferences) *ListService {
 	logger.Debug("Creating new ListService")
 	return &ListService{
-		logger:  logger,
-		store:   store,
-		channel: channel,
+		presentation: presentation,
+		logger:       logger,
+		store:        store,
+		channel:      channel,
 	}
 }
 
 // Build creates a scheduled message list response.
 func (l *ListService) Build(userID string) *model.CommandResponse {
+	r := formatter.ForUser(l.presentation, userID)
 	l.logger.Info("Building scheduled message list for user", "user_id", userID)
 	msgs, err := l.loadMessages(userID)
 	if err != nil {
 		l.logger.Error("Failed to load messages for user", "user_id", userID, "error", err)
-		return errorResponse(fmt.Sprintf("%s Error retrieving message list: %v", constants.EmojiError, err))
+		return errorResponse(r.Text("list_error", constants.EmojiError, err))
 	}
 	if len(msgs) == 0 {
 		l.logger.Info("User has no scheduled messages", "user_id", userID)
-		return emptyResponse()
+		return emptyResponse(r)
 	}
 
 	l.logger.Debug("Successfully loaded messages, building attachments", "user_id", userID, "count", len(msgs))
-	attachments := l.buildAttachments(msgs)
+	attachments := l.buildAttachments(msgs, r)
 	l.logger.Debug("Successfully built attachments for message list", "user_id", userID, "count", len(attachments))
-	return successResponse(attachments)
+	return successResponse(attachments, r)
 }
 
 func (l *ListService) loadMessages(userID string) ([]*types.ScheduledMessage, error) {
@@ -62,11 +65,14 @@ func (l *ListService) loadMessages(userID string) ([]*types.ScheduledMessage, er
 		l.logger.Debug("Loading scheduled message details", "user_id", userID, "message_id", id)
 		msg, err := l.store.GetScheduledMessage(id)
 		if err != nil {
+			if errors.Is(err, types.ErrMessageNotFound) {
+				_ = l.store.CleanupMessageFromUserIndex(userID, id)
+			}
 			// Log the error but continue trying to load other messages
 			l.logger.Error("Failed to get scheduled message details", "user_id", userID, "message_id", id, "error", err)
 			continue
 		}
-		if msg == nil || msg.ID == "" {
+		if msg == nil || msg.ID == "" || msg.Terminal() {
 			l.logger.Warn("Scheduled message referenced in user index not found, cleaning up", "user_id", userID, "message_id", id)
 			// Attempt cleanup, log if cleanup fails but continue processing
 			if cleanupErr := l.store.CleanupMessageFromUserIndex(userID, id); cleanupErr != nil {
@@ -87,7 +93,7 @@ func (l *ListService) loadMessages(userID string) ([]*types.ScheduledMessage, er
 	return msgs, nil
 }
 
-func (l *ListService) buildAttachments(msgs []*types.ScheduledMessage) []*model.MessageAttachment {
+func (l *ListService) buildAttachments(msgs []*types.ScheduledMessage, r formatter.Renderer) []*model.MessageAttachment {
 	l.logger.Debug("Building attachments for scheduled messages", "count", len(msgs))
 	attachments := []*model.MessageAttachment{}
 	channelCache := make(map[string]*ports.ChannelInfo)
@@ -100,15 +106,37 @@ func (l *ListService) buildAttachments(msgs []*types.ScheduledMessage) []*model.
 		} else {
 			l.logger.Debug("Channel info found in cache", "channel_id", m.ChannelID)
 		}
-		loc, _ := time.LoadLocation(m.Timezone)
+		loc, err := time.LoadLocation(m.Timezone)
+		if err != nil {
+			loc = time.UTC
+		}
 		localTime := m.PostAt.In(loc)
-		header := formatter.FormatListAttachmentHeader(
+		header := r.FormatListAttachmentHeader(
 			localTime,
-			l.channel.MakeChannelLink(channelCache[m.ChannelID]),
+			l.channel.MakeChannelLink(channelCache[m.ChannelID], r.DisplaySettings),
 			m.MessageContent,
 			m.RootID != "",
 		)
-		attachments = append(attachments, createAttachment(header, m.ID))
+		if m.State != "" {
+			header += "\n\n" + r.Text("delivery_status", m.State, m.Attempts, types.MaxDeliveryAttempts)
+			if m.LastReason != "" {
+				header += "\n" + r.Text("delivery_reason", m.LastReason)
+			}
+			if !m.NextAttemptAt.IsZero() {
+				header += "\n" + r.Text("next_check", r.DateTime(m.NextAttemptAt.In(loc)))
+			}
+		}
+		attachment := createAttachment(header, m.ID, r)
+		switch m.DeliveryState() {
+		case types.StateSending, types.StateReconciling:
+			attachment.Actions = nil
+		case types.StateUncertain:
+			attachment.Actions = attachment.Actions[:1]
+			attachment.Actions[0].Name = r.Text("check_delivery")
+		case types.StateCreating, types.StateProcessing:
+			attachment.Actions = attachment.Actions[1:]
+		}
+		attachments = append(attachments, attachment)
 		l.logger.Debug("Created attachment for message", "message_id", m.ID)
 	}
 
@@ -123,30 +151,30 @@ func errorResponse(txt string) *model.CommandResponse {
 	}
 }
 
-func emptyResponse() *model.CommandResponse {
+func emptyResponse(r formatter.Renderer) *model.CommandResponse {
 	return &model.CommandResponse{
 		ResponseType: model.CommandResponseTypeEphemeral,
-		Text:         constants.EmptyListMessage,
+		Text:         r.Text("empty_list"),
 	}
 }
 
-func successResponse(atts []*model.MessageAttachment) *model.CommandResponse {
+func successResponse(atts []*model.MessageAttachment, r formatter.Renderer) *model.CommandResponse {
 	return &model.CommandResponse{
 		ResponseType: model.CommandResponseTypeEphemeral,
-		Text:         constants.ListHeader,
+		Text:         r.Text("list_header"),
 		Props: map[string]any{
 			"attachments": atts,
 		},
 	}
 }
 
-func createAttachment(text string, messageID string) *model.MessageAttachment {
+func createAttachment(text string, messageID string, r formatter.Renderer) *model.MessageAttachment {
 	return &model.MessageAttachment{
 		Text: text,
 		Actions: []*model.PostAction{
 			{
 				Id:   "send",
-				Name: "Send",
+				Name: r.Text("send"),
 				Integration: &model.PostActionIntegration{
 					URL: "/plugins/com.mattermost.plugin-poor-mans-scheduled-messages/api/v1/send",
 					Context: map[string]any{
@@ -157,7 +185,7 @@ func createAttachment(text string, messageID string) *model.MessageAttachment {
 			},
 			{
 				Id:    "delete",
-				Name:  "Delete",
+				Name:  r.Text("delete"),
 				Style: "danger",
 				Integration: &model.PostActionIntegration{
 					URL: "/plugins/com.mattermost.plugin-poor-mans-scheduled-messages/api/v1/delete",

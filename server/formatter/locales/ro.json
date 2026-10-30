@@ -1,0 +1,43 @@
+{
+  "date": "2 January 2006",
+  "months": [
+    "ianuarie",
+    "februarie",
+    "martie",
+    "aprilie",
+    "mai",
+    "iunie",
+    "iulie",
+    "august",
+    "septembrie",
+    "octombrie",
+    "noiembrie",
+    "decembrie"
+  ],
+  "messages": {
+    "scheduled": "%s Mesaj programat pentru %s (%s) %s",
+    "empty_command": "Dorești să programezi un mesaj? Instrucțiuni: %s.",
+    "validation": "%s Eroare la programarea mesajului: %v",
+    "schedule_error": "%s Eroare la programarea mesajului pentru %s (%s) %s: %v",
+    "failure": "%s Eroare la trimiterea mesajului %s: %v — mesaj original: %s",
+    "thread": "(în fir)",
+    "list_header": "### Mesaje programate",
+    "empty_list": "Nu ai mesaje programate.",
+    "send": "Trimite",
+    "delete": "Șterge",
+    "channel": "în canalul: %s",
+    "direct": "în mesaj direct cu: %s",
+    "unknown_channel": "Canal necunoscut",
+    "deleted": "%s Mesajul programat pentru **%s** %s a fost șters.",
+    "sent": "%s Mesajul programat pentru **%s** %s a fost trimis.",
+    "delete_error": "%s Mesajul nu a putut fi șters: %v",
+    "send_error": "%s Mesajul nu a putut fi trimis: %v",
+    "list_error": "%s Eroare la obținerea listei de mesaje: %v",
+    "prepare_error": "Eroare la pregătirea mesajului: %v, intrare originală: `%v`",
+    "past_time": "Data programată %s a trecut deja. Alege o dată viitoare.",
+    "delivery_status": "Livrare: **%s** · încercări %d/%d",
+    "delivery_reason": "Motiv: %s",
+    "next_check": "Următoarea verificare: %s",
+    "check_delivery": "Verifică livrarea"
+  }
+}

@@ -7,37 +7,37 @@ import (
 	"time"
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
-	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/formatter"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
-	"github.com/mattermost/mattermost/server/public/model"
 )
 
 // Scheduler delivers scheduled messages on a timed loop.
 type Scheduler struct {
-	logger ports.Logger
-	poster ports.PostService
-	store  ports.Store
-	linker ports.ChannelService
-	botID  string
-	clock  ports.Clock
-	ctx    context.Context
-	cancel context.CancelFunc
-	mu     sync.Mutex
+	presentation ports.DisplayPreferences
+	logger       ports.Logger
+	poster       ports.PostService
+	store        ports.Store
+	linker       ports.ChannelService
+	botID        string
+	clock        ports.Clock
+	ctx          context.Context
+	cancel       context.CancelFunc
+	mu           sync.Mutex
 }
 
 // New builds a Scheduler with the provided dependencies.
-func New(logger ports.Logger, poster ports.PostService, store ports.Store, linker ports.ChannelService, botID string, clk ports.Clock) *Scheduler {
+func New(logger ports.Logger, poster ports.PostService, store ports.Store, linker ports.ChannelService, botID string, clk ports.Clock, presentation ports.DisplayPreferences) *Scheduler {
 	logger.Debug("Creating new scheduler instance")
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Scheduler{
-		logger: logger,
-		poster: poster,
-		store:  store,
-		linker: linker,
-		botID:  botID,
-		clock:  clk,
-		ctx:    ctx,
-		cancel: cancel,
+		presentation: presentation,
+		logger:       logger,
+		poster:       poster,
+		store:        store,
+		linker:       linker,
+		botID:        botID,
+		clock:        clk,
+		ctx:          ctx,
+		cancel:       cancel,
 	}
 }
 
@@ -111,7 +111,7 @@ func (s *Scheduler) processDueMessages() {
 	processedCount := 0
 	skippedCount := 0
 	for _, msg := range messages {
-		if msg.PostAt.Unix() > nowUnix {
+		if !msg.Due(now) {
 			// s.logger.Debug("Skipping message, not due yet", "message_id", msg.ID, "post_at_unix", msg.PostAt.Unix(), "now_unix", nowUnix)
 			skippedCount++
 			continue
@@ -134,62 +134,5 @@ func (s *Scheduler) getAllScheduledMessages() ([]*types.ScheduledMessage, error)
 
 func (s *Scheduler) handleDueMessage(msg *types.ScheduledMessage) {
 	s.logger.Debug("Handling due message", "message_id", msg.ID, "user_id", msg.UserID, "channel_id", msg.ChannelID)
-	_ = s.SendNow(msg)
-}
-
-// SendNow delivers a scheduled message immediately and removes it from storage.
-func (s *Scheduler) SendNow(msg *types.ScheduledMessage) error {
-	s.logger.Debug("Sending scheduled message now", "message_id", msg.ID, "user_id", msg.UserID, "channel_id", msg.ChannelID)
-	if err := s.deleteSchedule(msg); err != nil {
-		s.logger.Error("Halting processing for message due to delete failure", "message_id", msg.ID)
-		return err
-	}
-	if err := s.postMessage(msg); err != nil {
-		s.logger.Warn("Message posting failed, attempting to DM user", "message_id", msg.ID, "user_id", msg.UserID, "error", err)
-		s.dmUserOnFailedMessage(msg, err)
-		return err
-	}
-	s.logger.Info("Successfully posted scheduled message", "message_id", msg.ID, "user_id", msg.UserID, "channel_id", msg.ChannelID, "post_at", msg.PostAt)
-	return nil
-}
-
-func (s *Scheduler) deleteSchedule(msg *types.ScheduledMessage) error {
-	s.logger.Debug("Deleting scheduled message from store", "message_id", msg.ID, "user_id", msg.UserID)
-	err := s.store.DeleteScheduledMessage(msg.UserID, msg.ID)
-	if err != nil {
-		s.logger.Error("Failed to delete scheduled message from store", "message_id", msg.ID, "user_id", msg.UserID, "error", err)
-	}
-	s.logger.Debug("Successfully deleted scheduled message", "message_id", msg.ID, "user_id", msg.UserID)
-	return err
-}
-
-func (s *Scheduler) postMessage(msg *types.ScheduledMessage) error {
-	s.logger.Debug("Attempting to post scheduled message", "message_id", msg.ID, "user_id", msg.UserID, "channel_id", msg.ChannelID)
-	post := &model.Post{
-		ChannelId: msg.ChannelID,
-		RootId:    msg.RootID,
-		Message:   msg.MessageContent,
-		UserId:    msg.UserID,
-	}
-	postErr := s.poster.CreatePost(post)
-	if postErr != nil {
-		s.logger.Error("Failed to post scheduled message via PostService", "message_id", msg.ID, "user_id", msg.UserID, "channel_id", msg.ChannelID, "error", postErr)
-	}
-	s.logger.Debug("Successfully created post via PostService", "message_id", msg.ID, "user_id", msg.UserID, "channel_id", msg.ChannelID)
-	return postErr
-}
-
-func (s *Scheduler) dmUserOnFailedMessage(msg *types.ScheduledMessage, postErr error) {
-	s.logger.Debug("Attempting to DM user about failed message", "message_id", msg.ID, "user_id", msg.UserID, "original_channel_id", msg.ChannelID, "post_error", postErr)
-	channelInfo := s.linker.MakeChannelLink(s.linker.GetInfoOrUnknown(msg.ChannelID))
-	message := formatter.FormatSchedulerFailure(channelInfo, postErr, msg.MessageContent)
-	post := &model.Post{
-		Message: message,
-	}
-	dmErr := s.poster.DM(s.botID, msg.UserID, post)
-	if dmErr != nil {
-		s.logger.Error("Failed to send DM alert to user about failed scheduled message", "message_id", msg.ID, "user_id", msg.UserID, "dm_error", dmErr, "original_post_error", postErr)
-	} else {
-		s.logger.Debug("Successfully sent DM alert to user", "message_id", msg.ID, "user_id", msg.UserID)
-	}
+	_ = s.send(msg, false)
 }

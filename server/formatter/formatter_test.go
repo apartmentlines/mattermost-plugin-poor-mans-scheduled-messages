@@ -15,18 +15,18 @@ func TestFormatScheduleSuccess(t *testing.T) {
 	channel := "in channel: ~town-square"
 
 	t.Run("top-level message", func(t *testing.T) {
-		expected := fmt.Sprintf("%s Scheduled message for %s (%s) %s", constants.EmojiSuccess, ts.Format(constants.TimeLayout), tz, channel)
+		expected := fmt.Sprintf("%s Scheduled message for %s (%s) %s", constants.EmojiSuccess, ts.Format("Jan 2, 2006 3:04 PM"), tz, channel)
 
-		got := FormatScheduleSuccess(ts, tz, channel, false)
+		got := (Renderer{}).FormatScheduleSuccess(ts, tz, channel, false)
 		if got != expected {
 			t.Fatalf("FormatScheduleSuccess() = %q, want %q", got, expected)
 		}
 	})
 
 	t.Run("threaded message", func(t *testing.T) {
-		expected := fmt.Sprintf("%s Scheduled message for %s (%s) %s (thread)", constants.EmojiSuccess, ts.Format(constants.TimeLayout), tz, channel)
+		expected := fmt.Sprintf("%s Scheduled message for %s (%s) %s (thread)", constants.EmojiSuccess, ts.Format("Jan 2, 2006 3:04 PM"), tz, channel)
 
-		got := FormatScheduleSuccess(ts, tz, channel, true)
+		got := (Renderer{}).FormatScheduleSuccess(ts, tz, channel, true)
 		if got != expected {
 			t.Fatalf("FormatScheduleSuccess() = %q, want %q", got, expected)
 		}
@@ -37,7 +37,7 @@ func TestFormatEmptyCommandError(t *testing.T) {
 	helpCommand := fmt.Sprintf("/%s %s", constants.CommandTrigger, constants.SubcommandHelp)
 	expected := fmt.Sprintf(constants.EmptyScheduleMessage, helpCommand)
 
-	got := FormatEmptyCommandError()
+	got := (Renderer{}).FormatEmptyCommandError()
 	if got != expected {
 		t.Fatalf("FormatEmptyCommandError() = %q, want %q", got, expected)
 	}
@@ -47,7 +47,7 @@ func TestFormatScheduleValidationError(t *testing.T) {
 	errVal := errors.New("validation failure")
 	expected := fmt.Sprintf("%s Error scheduling message: %v", constants.EmojiError, errVal)
 
-	got := FormatScheduleValidationError(errVal)
+	got := (Renderer{}).FormatScheduleValidationError(errVal)
 	if got != expected {
 		t.Fatalf("FormatScheduleValidationError() = %q, want %q", got, expected)
 	}
@@ -59,9 +59,9 @@ func TestFormatScheduleError(t *testing.T) {
 	channel := "in channel: ~town-square"
 	errVal := errors.New("store failure")
 
-	expected := fmt.Sprintf("%s Error scheduling message for %s (%s) %s:  %v", constants.EmojiError, ts.Format(constants.TimeLayout), tz, channel, errVal)
+	expected := fmt.Sprintf("%s Error scheduling message for %s (%s) %s:  %v", constants.EmojiError, ts.Format("Jan 2, 2006 3:04 PM"), tz, channel, errVal)
 
-	got := FormatScheduleError(ts, tz, channel, errVal)
+	got := (Renderer{}).FormatScheduleError(ts, tz, channel, errVal)
 	if got != expected {
 		t.Fatalf("FormatScheduleError() = %q, want %q", got, expected)
 	}
@@ -74,7 +74,7 @@ func TestFormatSchedulerFailure(t *testing.T) {
 
 	expected := fmt.Sprintf("%s Error scheduling message %s: %v -- original message: %s", constants.EmojiError, channel, postErr, orig)
 
-	got := FormatSchedulerFailure(channel, postErr, orig)
+	got := (Renderer{}).FormatSchedulerFailure(channel, postErr, orig)
 	if got != expected {
 		t.Fatalf("FormatSchedulerFailure() = %q, want %q", got, expected)
 	}
@@ -86,18 +86,18 @@ func TestFormatListAttachmentHeader(t *testing.T) {
 	msg := "hello world"
 
 	t.Run("top-level message", func(t *testing.T) {
-		expected := fmt.Sprintf("##### %s\n%s\n\n%s", ts.Format(constants.TimeLayout), channel, msg)
+		expected := fmt.Sprintf("##### %s\n%s\n\n%s", ts.Format("Jan 2, 2006 3:04 PM"), channel, msg)
 
-		got := FormatListAttachmentHeader(ts, channel, msg, false)
+		got := (Renderer{}).FormatListAttachmentHeader(ts, channel, msg, false)
 		if got != expected {
 			t.Fatalf("FormatListAttachmentHeader() = %q, want %q", got, expected)
 		}
 	})
 
 	t.Run("threaded message", func(t *testing.T) {
-		expected := fmt.Sprintf("##### %s\n%s (thread)\n\n%s", ts.Format(constants.TimeLayout), channel, msg)
+		expected := fmt.Sprintf("##### %s\n%s (thread)\n\n%s", ts.Format("Jan 2, 2006 3:04 PM"), channel, msg)
 
-		got := FormatListAttachmentHeader(ts, channel, msg, true)
+		got := (Renderer{}).FormatListAttachmentHeader(ts, channel, msg, true)
 		if got != expected {
 			t.Fatalf("FormatListAttachmentHeader() = %q, want %q", got, expected)
 		}

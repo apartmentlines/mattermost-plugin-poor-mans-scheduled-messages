@@ -1,0 +1,43 @@
+{
+  "date": "2 January 2006",
+  "months": [
+    "januari",
+    "februari",
+    "mars",
+    "april",
+    "maj",
+    "juni",
+    "juli",
+    "augusti",
+    "september",
+    "oktober",
+    "november",
+    "december"
+  ],
+  "messages": {
+    "scheduled": "%s Meddelande schemalagt till %s (%s) %s",
+    "empty_command": "Vill du schemalägga ett meddelande? Instruktioner: %s.",
+    "validation": "%s Fel vid schemaläggning av meddelandet: %v",
+    "schedule_error": "%s Fel vid schemaläggning av meddelandet till %s (%s) %s: %v",
+    "failure": "%s Fel vid sändning av meddelandet %s: %v — ursprungligt meddelande: %s",
+    "thread": "(i tråd)",
+    "list_header": "### Schemalagda meddelanden",
+    "empty_list": "Du har inga schemalagda meddelanden.",
+    "send": "Skicka",
+    "delete": "Ta bort",
+    "channel": "i kanal: %s",
+    "direct": "i direktmeddelande med: %s",
+    "unknown_channel": "Okänd kanal",
+    "deleted": "%s Meddelandet schemalagt till **%s** %s har tagits bort.",
+    "sent": "%s Meddelandet schemalagt till **%s** %s har skickats.",
+    "delete_error": "%s Kunde inte ta bort meddelandet: %v",
+    "send_error": "%s Kunde inte skicka meddelandet: %v",
+    "list_error": "%s Fel vid hämtning av meddelandelistan: %v",
+    "prepare_error": "Fel vid förberedelse av meddelandet: %v, ursprunglig inmatning: `%v`",
+    "past_time": "Den planerade tidpunkten %s har redan passerat. Välj en framtida tidpunkt.",
+    "delivery_status": "Leverans: **%s** · försök %d/%d",
+    "delivery_reason": "Orsak: %s",
+    "next_check": "Nästa kontroll: %s",
+    "check_delivery": "Kontrollera leverans"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "date": "2. January 2006.",
+  "months": [
+    "siječnja",
+    "veljače",
+    "ožujka",
+    "travnja",
+    "svibnja",
+    "lipnja",
+    "srpnja",
+    "kolovoza",
+    "rujna",
+    "listopada",
+    "studenoga",
+    "prosinca"
+  ],
+  "messages": {
+    "scheduled": "%s Poruka zakazana za %s (%s) %s",
+    "empty_command": "Želite zakazati poruku? Upute: %s.",
+    "validation": "%s Pogreška pri zakazivanju poruke: %v",
+    "schedule_error": "%s Pogreška pri zakazivanju poruke za %s (%s) %s: %v",
+    "failure": "%s Pogreška pri slanju poruke %s: %v — izvorna poruka: %s",
+    "thread": "(u niti)",
+    "list_header": "### Zakazane poruke",
+    "empty_list": "Nemate zakazanih poruka.",
+    "send": "Pošalji",
+    "delete": "Izbriši",
+    "channel": "u kanalu: %s",
+    "direct": "u izravnoj poruci s: %s",
+    "unknown_channel": "Nepoznat kanal",
+    "deleted": "%s Poruka zakazana za **%s** %s je izbrisana.",
+    "sent": "%s Poruka zakazana za **%s** %s je poslana.",
+    "delete_error": "%s Poruku nije moguće izbrisati: %v",
+    "send_error": "%s Poruku nije moguće poslati: %v",
+    "list_error": "%s Pogreška pri dohvaćanju popisa poruka: %v",
+    "prepare_error": "Pogreška pri pripremi poruke: %v, izvorni unos: `%v`",
+    "past_time": "Zakazano vrijeme %s već je prošlo. Odaberite vrijeme u budućnosti.",
+    "delivery_status": "Dostava: **%s** · pokušaji %d/%d",
+    "delivery_reason": "Razlog: %s",
+    "next_check": "Sljedeća provjera: %s",
+    "check_delivery": "Provjeri dostavu"
+  }
+}

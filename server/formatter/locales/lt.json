@@ -1,0 +1,43 @@
+{
+  "date": "2006 m. January 2 d.",
+  "months": [
+    "sausio",
+    "vasario",
+    "kovo",
+    "balandžio",
+    "gegužės",
+    "birželio",
+    "liepos",
+    "rugpjūčio",
+    "rugsėjo",
+    "spalio",
+    "lapkričio",
+    "gruodžio"
+  ],
+  "messages": {
+    "scheduled": "%s Žinutė suplanuota %s (%s) %s",
+    "empty_command": "Norite suplanuoti žinutę? Instrukcijos: %s.",
+    "validation": "%s Klaida planuojant žinutę: %v",
+    "schedule_error": "%s Klaida planuojant žinutę %s (%s) %s: %v",
+    "failure": "%s Klaida siunčiant žinutę %s: %v — pradinė žinutė: %s",
+    "thread": "(gijoje)",
+    "list_header": "### Suplanuotos žinutės",
+    "empty_list": "Neturite suplanuotų žinučių.",
+    "send": "Siųsti",
+    "delete": "Ištrinti",
+    "channel": "kanale: %s",
+    "direct": "tiesioginėje žinutėje su: %s",
+    "unknown_channel": "Nežinomas kanalas",
+    "deleted": "%s Žinutė, suplanuota **%s** %s, ištrinta.",
+    "sent": "%s Žinutė, suplanuota **%s** %s, išsiųsta.",
+    "delete_error": "%s Nepavyko ištrinti žinutės: %v",
+    "send_error": "%s Nepavyko išsiųsti žinutės: %v",
+    "list_error": "%s Klaida gaunant žinučių sąrašą: %v",
+    "prepare_error": "Klaida ruošiant žinutę: %v, pradinė įvestis: `%v`",
+    "past_time": "Suplanuotas laikas %s jau praėjo. Pasirinkite laiką ateityje.",
+    "delivery_status": "Pristatymas: **%s** · bandymai %d/%d",
+    "delivery_reason": "Priežastis: %s",
+    "next_check": "Kitas patikrinimas: %s",
+    "check_delivery": "Tikrinti pristatymą"
+  }
+}

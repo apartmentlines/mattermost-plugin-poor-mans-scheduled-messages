@@ -1,0 +1,43 @@
+{
+  "date": "2006年January2日",
+  "months": [
+    "一月",
+    "二月",
+    "三月",
+    "四月",
+    "五月",
+    "六月",
+    "七月",
+    "八月",
+    "九月",
+    "十月",
+    "十一月",
+    "十二月"
+  ],
+  "messages": {
+    "scheduled": "%s 消息已安排在 %s (%s) %s",
+    "empty_command": "想安排消息？使用 %s 查看说明。",
+    "validation": "%s 安排消息出错：%v",
+    "schedule_error": "%s 安排在 %s (%s) 的消息出错 %s：%v",
+    "failure": "%s 发送消息出错 %s：%v — 原始消息：%s",
+    "thread": "（话题内）",
+    "list_header": "### 定时消息",
+    "empty_list": "您没有定时消息。",
+    "send": "发送",
+    "delete": "删除",
+    "channel": "在频道：%s",
+    "direct": "在私信中与：%s",
+    "unknown_channel": "未知频道",
+    "deleted": "%s 已删除安排在 **%s** 的消息 %s。",
+    "sent": "%s 已发送安排在 **%s** 的消息 %s。",
+    "delete_error": "%s 无法删除消息：%v",
+    "send_error": "%s 无法发送消息：%v",
+    "list_error": "%s 获取消息列表出错：%v",
+    "prepare_error": "准备消息出错：%v，原始输入：`%v`",
+    "past_time": "安排的时间 %s 已过。请选择未来的时间。",
+    "delivery_status": "投递：**%s** · 尝试 %d/%d",
+    "delivery_reason": "原因：%s",
+    "next_check": "下次检查：%s",
+    "check_delivery": "检查投递"
+  }
+}

@@ -9,39 +9,39 @@ import (
 )
 
 // FormatScheduleSuccess renders a success message for scheduling.
-func FormatScheduleSuccess(postAt time.Time, tz, channelLink string, inThread bool) string {
-	return fmt.Sprintf("%s Scheduled message for %s (%s) %s", constants.EmojiSuccess, postAt.Format(constants.TimeLayout), tz, formatDestination(channelLink, inThread))
+func (r Renderer) FormatScheduleSuccess(postAt time.Time, tz, channelLink string, inThread bool) string {
+	return r.Text("scheduled", constants.EmojiSuccess, r.DateTime(postAt), tz, r.formatDestination(channelLink, inThread))
 }
 
 // FormatEmptyCommandError renders a message for empty input.
-func FormatEmptyCommandError() string {
+func (r Renderer) FormatEmptyCommandError() string {
 	helpCommand := fmt.Sprintf("/%s %s", constants.CommandTrigger, constants.SubcommandHelp)
-	return fmt.Sprintf(constants.EmptyScheduleMessage, helpCommand)
+	return r.Text("empty_command", helpCommand)
 }
 
 // FormatScheduleValidationError renders a validation error message.
-func FormatScheduleValidationError(err error) string {
-	return fmt.Sprintf("%s Error scheduling message: %v", constants.EmojiError, err)
+func (r Renderer) FormatScheduleValidationError(err error) string {
+	return r.Text("validation", constants.EmojiError, err)
 }
 
 // FormatScheduleError renders a scheduling error message.
-func FormatScheduleError(postAt time.Time, tz, channelLink string, err error) string {
-	return fmt.Sprintf("%s Error scheduling message for %s (%s) %s:  %v", constants.EmojiError, postAt.Format(constants.TimeLayout), tz, channelLink, err)
+func (r Renderer) FormatScheduleError(postAt time.Time, tz, channelLink string, err error) string {
+	return r.Text("schedule_error", constants.EmojiError, r.DateTime(postAt), tz, channelLink, err)
 }
 
 // FormatSchedulerFailure renders a scheduler failure DM message.
-func FormatSchedulerFailure(channelLink string, postErr error, originalMsg string) string {
-	return fmt.Sprintf("%s Error scheduling message %s: %v -- original message: %s", constants.EmojiError, channelLink, postErr, originalMsg)
+func (r Renderer) FormatSchedulerFailure(channelLink string, postErr error, originalMsg string) string {
+	return r.Text("failure", constants.EmojiError, channelLink, postErr, originalMsg)
 }
 
 // FormatListAttachmentHeader renders list attachment header text.
-func FormatListAttachmentHeader(postAt time.Time, channelLink, messageContent string, inThread bool) string {
-	return fmt.Sprintf("##### %s\n%s\n\n%s", postAt.Format(constants.TimeLayout), formatDestination(channelLink, inThread), messageContent)
+func (r Renderer) FormatListAttachmentHeader(postAt time.Time, channelLink, messageContent string, inThread bool) string {
+	return fmt.Sprintf("##### %s\n%s\n\n%s", r.DateTime(postAt), r.formatDestination(channelLink, inThread), messageContent)
 }
 
-func formatDestination(channelLink string, inThread bool) string {
+func (r Renderer) formatDestination(channelLink string, inThread bool) string {
 	if inThread {
-		return channelLink + " (thread)"
+		return channelLink + " " + r.Text("thread")
 	}
 	return channelLink
 }

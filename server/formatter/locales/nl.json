@@ -1,0 +1,43 @@
+{
+  "date": "2 January 2006",
+  "months": [
+    "januari",
+    "februari",
+    "maart",
+    "april",
+    "mei",
+    "juni",
+    "juli",
+    "augustus",
+    "september",
+    "oktober",
+    "november",
+    "december"
+  ],
+  "messages": {
+    "scheduled": "%s Bericht gepland voor %s (%s) %s",
+    "empty_command": "Een bericht plannen? Instructies: %s.",
+    "validation": "%s Fout bij het plannen van het bericht: %v",
+    "schedule_error": "%s Fout bij het plannen van het bericht voor %s (%s) %s: %v",
+    "failure": "%s Fout bij het verzenden van het bericht %s: %v — oorspronkelijk bericht: %s",
+    "thread": "(in thread)",
+    "list_header": "### Geplande berichten",
+    "empty_list": "Je hebt geen geplande berichten.",
+    "send": "Verzenden",
+    "delete": "Verwijderen",
+    "channel": "in kanaal: %s",
+    "direct": "in direct bericht met: %s",
+    "unknown_channel": "Onbekend kanaal",
+    "deleted": "%s Het bericht gepland voor **%s** %s is verwijderd.",
+    "sent": "%s Het bericht gepland voor **%s** %s is verzonden.",
+    "delete_error": "%s Bericht kon niet worden verwijderd: %v",
+    "send_error": "%s Bericht kon niet worden verzonden: %v",
+    "list_error": "%s Fout bij het ophalen van de berichtenlijst: %v",
+    "prepare_error": "Fout bij het voorbereiden van het bericht: %v, oorspronkelijke invoer: `%v`",
+    "past_time": "Het geplande tijdstip %s is al voorbij. Kies een toekomstig tijdstip.",
+    "delivery_status": "Bezorging: **%s** · pogingen %d/%d",
+    "delivery_reason": "Reden: %s",
+    "next_check": "Volgende controle: %s",
+    "check_delivery": "Bezorging controleren"
+  }
+}

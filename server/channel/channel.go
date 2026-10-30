@@ -7,6 +7,8 @@ import (
 
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/internal/ports"
 	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/constants"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/formatter"
+	"github.com/apartmentlines/mattermost-plugin-poor-mans-scheduled-messages/server/types"
 	"github.com/mattermost/mattermost/server/public/model"
 )
 
@@ -110,16 +112,8 @@ func (c *Channel) GetInfoOrUnknown(channelID string) *ports.ChannelInfo {
 }
 
 // MakeChannelLink formats a channel link string for display.
-func (c *Channel) MakeChannelLink(channelInfo *ports.ChannelInfo) string {
-	c.logger.Debug("Making channel link string", "channel_id", channelInfo.ChannelID, "channel_type", channelInfo.ChannelType, "channel_link_raw", channelInfo.ChannelLink)
-	if channelInfo.ChannelID == "" {
-		c.logger.Debug("Channel ID is empty, returning raw link (unknown channel)", "channel_link", channelInfo.ChannelLink)
-		return channelInfo.ChannelLink
-	}
-	if channelInfo.ChannelType == model.ChannelTypeDirect || channelInfo.ChannelType == model.ChannelTypeGroup {
-		return fmt.Sprintf("in direct message with: %s", channelInfo.ChannelLink)
-	}
-	return fmt.Sprintf("in channel: %s", channelInfo.ChannelLink)
+func (c *Channel) MakeChannelLink(info *ports.ChannelInfo, display types.DisplaySettings) string {
+	return (formatter.Renderer{DisplaySettings: display}).Destination(info)
 }
 
 func (c *Channel) mapMembersToUsernames(members []*model.ChannelMember) ([]string, error) {

@@ -1,0 +1,43 @@
+{
+  "date": "2006. January 2.",
+  "months": [
+    "január",
+    "február",
+    "március",
+    "április",
+    "május",
+    "június",
+    "július",
+    "augusztus",
+    "szeptember",
+    "október",
+    "november",
+    "december"
+  ],
+  "messages": {
+    "scheduled": "%s Üzenet időzítve: %s (%s) %s",
+    "empty_command": "Üzenetet szeretnél időzíteni? Útmutató: %s.",
+    "validation": "%s Hiba az üzenet időzítésekor: %v",
+    "schedule_error": "%s Hiba az üzenet időzítésekor: %s (%s) %s: %v",
+    "failure": "%s Hiba az üzenet küldésekor %s: %v — eredeti üzenet: %s",
+    "thread": "(szálban)",
+    "list_header": "### Időzített üzenetek",
+    "empty_list": "Nincsenek időzített üzeneteid.",
+    "send": "Küldés",
+    "delete": "Törlés",
+    "channel": "csatornában: %s",
+    "direct": "közvetlen üzenetben: %s",
+    "unknown_channel": "Ismeretlen csatorna",
+    "deleted": "%s A(z) **%s** időpontra időzített üzenet %s törölve.",
+    "sent": "%s A(z) **%s** időpontra időzített üzenet %s elküldve.",
+    "delete_error": "%s Az üzenet nem törölhető: %v",
+    "send_error": "%s Az üzenet nem küldhető el: %v",
+    "list_error": "%s Hiba az üzenetlista lekérésekor: %v",
+    "prepare_error": "Hiba az üzenet előkészítésekor: %v, eredeti bevitel: `%v`",
+    "past_time": "A megadott időpont (%s) már elmúlt. Válassz jövőbeli időpontot.",
+    "delivery_status": "Kézbesítés: **%s** · kísérletek %d/%d",
+    "delivery_reason": "Ok: %s",
+    "next_check": "Következő ellenőrzés: %s",
+    "check_delivery": "Kézbesítés ellenőrzése"
+  }
+}

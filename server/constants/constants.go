@@ -79,8 +79,6 @@ const (
 
 	// Formatting & Display Strings
 
-	// TimeLayout is the time format for user-facing messages.
-	TimeLayout = "Jan 2, 2006 3:04 PM"
 	// EmojiSuccess is the success indicator emoji.
 	EmojiSuccess = "✅"
 	// EmojiError is the error indicator emoji.

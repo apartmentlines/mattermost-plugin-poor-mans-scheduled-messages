@@ -1,0 +1,43 @@
+{
+  "date": "2 January 2006",
+  "months": [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+  ],
+  "messages": {
+    "scheduled": "%s Scheduled message for %s (%s) %s",
+    "empty_command": "Trying to schedule a message? Use %s for instructions.",
+    "validation": "%s Error scheduling message: %v",
+    "schedule_error": "%s Error scheduling message for %s (%s) %s:  %v",
+    "failure": "%s Error scheduling message %s: %v -- original message: %s",
+    "thread": "(thread)",
+    "list_header": "### Scheduled Messages",
+    "empty_list": "You have no scheduled messages.",
+    "send": "Send",
+    "delete": "Delete",
+    "channel": "in channel: %s",
+    "direct": "in direct message with: %s",
+    "unknown_channel": "N/A",
+    "deleted": "%s Message scheduled for **%s** %s has been deleted.",
+    "sent": "%s Message scheduled for **%s** %s has been sent.",
+    "delete_error": "%s Could not delete message: %v",
+    "send_error": "%s Could not send message: %v",
+    "list_error": "%s Error retrieving message list: %v",
+    "prepare_error": "Error preparing schedule: %v, Original input: `%v`",
+    "past_time": "scheduled time '%s' is already in the past -- must be in the future when using a specific date",
+    "delivery_status": "Delivery: **%s** · attempts %d/%d",
+    "delivery_reason": "Reason: %s",
+    "next_check": "Next check: %s",
+    "check_delivery": "Check delivery"
+  }
+}
